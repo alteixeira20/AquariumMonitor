@@ -1,58 +1,54 @@
 # Architecture
 
-AquariumMonitor is a single‑owner, self‑hosted monitoring platform. The backend is intentionally simple: strict domain rules, a clean service layer, and a storage abstraction that works on SQLite by default and MariaDB when you need more scale.
+AquariumMonitor is a single‑owner, self‑hosted system that ingests aquarium sensor data and serves it to a web dashboard. The backend is intentionally simple and strict: clear domain rules, a service layer that enforces them, and storage that can run on SQLite by default or MariaDB when needed.
 
-## High-level design
-- **API layer (FastAPI)** — HTTP endpoints, auth, validation, and response shaping.
-- **Domain layer** — business rules (calibration, reading validation, device state).
-- **Service layer** — orchestration of domain rules + persistence (use cases).
-- **Repository layer** — data access abstraction (SQLite / MariaDB / memory).
-- **Infrastructure** — migrations, backup jobs, metrics, logging.
+## System overview
+- **Device or simulator** sends readings (temperature, pH voltage, TDS voltage).
+- **Backend API** validates and stores readings, enforces calibration and attachment rules.
+- **Storage** persists users, aquariums, devices, readings, and calibration data.
+- **Web dashboard** queries stats and time‑series data for visualization.
+
+## Backend layers
+- **API layer** (FastAPI): routing, auth, validation, response shaping.
+- **Domain layer**: sensor math, calibration, and invariants.
+- **Service layer**: orchestration of domain rules and persistence.
+- **Repository layer**: SQLite / MariaDB / memory implementations.
+- **Infrastructure**: migrations, logging, metrics, backups.
 
 ## Core flows
-### First-run setup
+### First‑run setup
 1) If no owner exists, the UI calls the setup endpoint.
-2) An owner account is created and stored with bcrypt.
-3) Demo read‑only access becomes available for previews.
+2) The owner account is created and stored with bcrypt.
+3) If demo access is enabled in configuration, the UI can offer a demo login option.
 
 ### Device onboarding
 1) Register a device.
-2) Attach it to an aquarium after pH calibration is stored (4.01 / 6.86 / 9.18).
-3) Once attached and calibrated, the device can send readings.
+2) Record pH calibration points (4.01 / 6.86 / 9.18).
+3) Attach the device to an aquarium.
+4) Device can now submit readings.
 
 ### Telemetry
-1) Device sends readings to the API.
-2) Service layer validates values and enforces calibration requirements.
-3) Repository persists readings; stats endpoints provide medians and time-series.
-
-## Request lifecycle (simplified)
-1) **Auth middleware** resolves owner vs demo access.
-2) **Validation** (Pydantic) checks input contracts.
-3) **Service** applies domain rules.
-4) **Repository** persists or retrieves data.
-5) **Response** is shaped and logged.
+1) Device submits a reading with its API key.
+2) Service layer validates values and checks calibration + attachment.
+3) Repository stores readings; stats endpoints provide medians and time‑series.
 
 ## Storage strategy
-- **SQLite is the default** for zero‑config self‑hosting.
-- **MariaDB is optional** for higher write throughput.
-- **Alembic migrations** keep schemas consistent across backends.
-
-See: `docs/technologies.md` and `docs/configuration.md`.
+- **SQLite (default)** for easy self‑hosting.
+- **MariaDB (optional)** for larger deployments.
+- **Migrations** via Alembic to keep schema consistent on MariaDB.
+- **Backups** for SQLite with a rolling retention window.
 
 ## Observability
-- **Structured JSON logs** for operational visibility.
-- **Metrics endpoints** for quick health inspection and Prometheus scraping.
-
-## Background tasks
-- **SQLite backups** are created on a schedule and pruned by retention.
+- Structured JSON logs
+- Health, readiness, and metrics endpoints
+- Prometheus‑compatible metrics output
 
 ## Extensibility
-- Add new sensors by extending the domain rules + schemas.
-- Add new storage backends by implementing repository interfaces.
-- Add new UI features without changing core domain behavior.
+- Add sensors by extending domain rules + schemas.
+- Add dashboards without touching domain logic.
+- Add a new database by implementing repository interfaces.
 
-## Related docs
+Related docs:
+- `docs/backend/README.md`
 - `docs/technologies.md`
-- `docs/api.md` (coming next)
-- `docs/testing.md` (coming next)
-- `docs/self_hosting.md` (coming next)
+- `docs/self_hosting.md`

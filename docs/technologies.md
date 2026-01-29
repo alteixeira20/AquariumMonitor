@@ -1,33 +1,26 @@
 # Technologies
 
-This project favors simple, proven tools that run well on small hardware while still scaling when needed.
+This project uses small, proven building blocks that run well on home servers while staying scalable.
 
-## Backend
-- **FastAPI** — async API framework; fast to build, good type hints, great OpenAPI support.
-- **Pydantic (v2)** — request/response validation and settings, keeps data contracts strict and explicit.
-- **Uvicorn** — lightweight ASGI server; handles async workloads without heavy ops overhead.
+## Backend (current)
+- **FastAPI** — async API framework with clear typing and OpenAPI docs.
+- **Pydantic v2** — strict request/response validation and settings management.
+- **Uvicorn** — lightweight ASGI server for async workloads.
+- **SQLAlchemy (async)** — consistent data access across SQLite and MariaDB.
+- **Alembic** — schema migrations for MariaDB deployments.
+- **aiosqlite / asyncmy / PyMySQL** — runtime and migration drivers.
+- **PyJWT + bcrypt** — JWT auth and secure password hashing.
+- **python-json-logger** — structured logs for operational visibility.
 
-## Data & Persistence
-- **SQLite (default)** — zero-config storage that fits self-hosting and home setups.
-- **MariaDB (optional)** — drop-in upgrade for larger deployments and better concurrency.
-- **SQLAlchemy (async)** — consistent data access layer across SQLite and MariaDB.
-- **Alembic** — predictable schema migrations without manual SQL drift.
-- **aiosqlite / asyncmy / PyMySQL** — async drivers for runtime, sync driver for migrations.
+## Testing & quality (current)
+- **pytest + httpx** — API and service tests with real HTTP flows.
+- **ruff + black** — linting and formatting for consistent code style.
 
-## Auth & Security
-- **JWT (PyJWT)** — stateless tokens for API and UI auth flows.
-- **bcrypt** — safe password hashing for the owner account.
-- **Rate limiting** — simple middleware to protect the API from abuse.
+## Self‑hosting (current)
+- **Docker + Compose** — reproducible local and production setups.
 
-## Observability
-- **Structured JSON logs** — production-friendly logs that are easy to parse and ship.
-- **Metrics endpoints** — lightweight internal metrics + Prometheus-compatible output.
+## Frontend (planned)
+- **Next.js** — server‑rendered dashboard with fast navigation.
+- **Charting library** — time‑series visualization (final choice documented when added).
 
-## Dev & Quality
-- **pytest + httpx** — fast API and service tests with realistic HTTP calls.
-- **ruff + black** — consistent linting and formatting to keep the codebase clean.
-
-## Delivery
-- **Docker / Compose** — reproducible local and self-hosting installs.
-
-If you want a specific technology replaced, open an issue and explain the target environment and constraints.
+If you want a different toolchain, open an issue with your constraints and target environment.
