@@ -9,7 +9,7 @@ Self-hosted aquarium monitoring system with real-time metrics, device simulation
 - Built to be extended with your own hardware devices
 
 ## Documentation
-Start here: [docs/README.md](docs/README.md)
+- Overview and navigation: `docs/README.md`
 
 ## Project status
 We are rebuilding this repo from scratch with a clean history, step-by-step, so every part of the system is documented and easy to follow.
