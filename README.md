@@ -1,24 +1,50 @@
-# AquariumMonitor
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python badge">
+  <img src="https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI badge">
+  <img src="https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite badge">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker badge">
+</p>
 
-Self-hosted aquarium monitoring system with real-time metrics, device simulation, and a clean API for DIY builders.
+<h1 align="center">AquariumMonitor</h1>
+<p align="center">Self-hosted aquarium monitoring system with real-time metrics, device simulation, and a clean API for DIY builders.</p>
+<p align="center"><sub><em>Single-owner by design, demo-friendly for showcases, built to be extended with custom hardware.</em></sub></p>
 
-## What this is
-- Real-time telemetry ingestion for aquarium sensors
-- Single-owner setup with a demo read-only user
-- Self-hosted by design (SQLite default, MariaDB optional)
-- Built to be extended with your own hardware devices
+## Table of Contents
+1. [At a Glance](#at-a-glance)
+2. [About](#about)
+3. [Documentation](#documentation)
+4. [Scope](#scope)
+5. [Roadmap](#roadmap)
+6. [License](#license)
+
+## At a Glance
+- Real-time telemetry ingestion with strict validation and calibration gates.
+- SQLite default with MariaDB optional for heavier workloads.
+- Stats and time-series endpoints designed for dashboards.
+- Demo access is optional and read-only for safe public previews.
+- Self-hosting focused with backups and predictable ops.
+
+## About
+AquariumMonitor targets DIY aquarists who want a reliable, self-hosted system that can grow from a single tank to multi-device setups. The backend prioritizes correctness and clarity so it stays approachable for peers who want to learn or extend it.
 
 ## Documentation
-- Overview and navigation: `docs/README.md`
+- [Docs hub](docs/README.md)
+- [Architecture](docs/architecture.md)
+- [Backend overview](docs/backend/README.md)
+- [Self-hosting guide](docs/self_hosting.md)
+- [Frontend overview](docs/frontend/README.md)
 
-## Project status
-We are rebuilding this repo from scratch with a clean history, step-by-step, so every part of the system is documented and easy to follow.
+## Scope
+- Backend API for aquariums, devices, calibration, and readings
+- Device simulator for live demo data
+- Web dashboard for real-time and historical views
+- DIY device guide (planned)
 
-## Roadmap (high level)
-- Backend API + storage
-- Device simulator for live charts
-- Web dashboard (Next.js)
-- DIY device guide
+## Roadmap
+- Backend migration with clean history
+- Simulator and seeded demo data
+- Dashboard UI (Next.js)
+- Full DIY hardware tutorial
 
 ## License
 CC BY-NC 4.0

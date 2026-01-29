@@ -24,3 +24,7 @@ This project uses small, proven building blocks that run well on home servers wh
 - **Charting library** — time‑series visualization (final choice documented when added).
 
 If you want a different toolchain, open an issue with your constraints and target environment.
+
+See also:
+- [Architecture](architecture.md)
+- [Backend overview](backend/README.md)

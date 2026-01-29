@@ -21,3 +21,6 @@ These concepts define how the system models aquarium monitoring data.
 - Device stats are computed per device.
 - Aquarium stats aggregate across all attached devices.
 - Time‑series endpoints allow charts by time window.
+
+See also:
+- [API reference](backend/api.md)

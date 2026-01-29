@@ -10,12 +10,12 @@ The backend is the source of truth for aquariums, devices, calibration, and read
 - Stats and time‑series aggregation
 
 ## Core endpoints
-- Setup and login: `docs/backend/api.md`
-- Devices, aquariums, and readings: `docs/backend/api.md`
-- Configuration: `docs/backend/configuration.md`
-- Storage & backups: `docs/backend/storage.md`
-- Operations: `docs/backend/runbook.md`
-- Testing: `docs/backend/testing.md`
+- Setup and login: [API reference](api.md)
+- Devices, aquariums, and readings: [API reference](api.md)
+- Configuration: [Configuration](configuration.md)
+- Storage & backups: [Storage](storage.md)
+- Operations: [Runbook](runbook.md)
+- Testing: [Testing](testing.md)
 
 ## First‑run setup
 The first‑run flow creates the owner account. If demo access is enabled in configuration, the UI can offer a demo login option. The demo account is read‑only and intended for showcasing the dashboard.

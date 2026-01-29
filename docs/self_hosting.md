@@ -50,3 +50,6 @@ MariaDB:
 ```
 ./scripts/backup_mariadb.sh
 ```
+
+See also:
+- [Backend configuration](backend/configuration.md)

@@ -49,6 +49,6 @@ AquariumMonitor is a single‑owner, self‑hosted system that ingests aquarium 
 - Add a new database by implementing repository interfaces.
 
 Related docs:
-- `docs/backend/README.md`
-- `docs/technologies.md`
-- `docs/self_hosting.md`
+- [Backend overview](backend/README.md)
+- [Technologies](technologies.md)
+- [Self-hosting](self_hosting.md)

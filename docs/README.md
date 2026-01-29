@@ -1,23 +1,21 @@
 # Documentation
 
-This documentation is split by concerns so you can quickly find what you need.
+Clear, practical docs that map directly to the system’s structure.
 
-## Project overview
-- Architecture: `docs/architecture.md`
-- Domain concepts: `docs/concepts.md`
-- Technologies and tooling: `docs/technologies.md`
+## Start here
+- [Architecture](architecture.md)
+- [Domain concepts](concepts.md)
+- [Technologies](technologies.md)
+- [Self-hosting guide](self_hosting.md)
 
 ## Backend
-- Overview: `docs/backend/README.md`
-- API reference: `docs/backend/api.md`
-- Configuration: `docs/backend/configuration.md`
-- Storage & backups: `docs/backend/storage.md`
-- Testing: `docs/backend/testing.md`
-- Operations runbook: `docs/backend/runbook.md`
-- Code tour: `docs/backend/code_tour.md`
+- [Overview](backend/README.md)
+- [API reference](backend/api.md)
+- [Configuration](backend/configuration.md)
+- [Storage and backups](backend/storage.md)
+- [Testing](backend/testing.md)
+- [Operations runbook](backend/runbook.md)
+- [Code tour](backend/code_tour.md)
 
 ## Frontend
-- Overview: `docs/frontend/README.md`
-
-## Self-hosting
-- Guide: `docs/self_hosting.md`
+- [Overview](frontend/README.md)

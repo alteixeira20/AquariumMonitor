@@ -7,4 +7,4 @@ Planned scope:
 - Time‑range charts for temperature, pH, and TDS
 - Read‑only demo access
 
-The frontend will consume the backend endpoints documented in `docs/backend/api.md`.
+The frontend will consume the backend endpoints documented in [API reference](../backend/api.md).
