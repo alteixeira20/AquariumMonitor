@@ -6,6 +6,13 @@ The test suite is designed to protect the API contract, the domain rules, and st
 - `make test` — in‑memory backend (fast feedback)
 - `make test-sqlite` — SQLite backend + seeded database
 
+From the repo root, you can also run:
+- `make backend-test`
+- `make backend-test-sqlite`
+
+Optional smoke test (requires `jq`):
+- `apps/backend/scripts/manual_test.sh`
+
 ## What it validates
 - **API contract**: real HTTP requests against FastAPI endpoints.
   - Status codes, response shapes, auth enforcement, and pagination rules.
