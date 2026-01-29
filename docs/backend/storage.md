@@ -30,3 +30,9 @@ Key settings:
 - SQLite backups run on a schedule and keep a rolling buffer.
 - Old backups are pruned automatically based on retention.
 - MariaDB backups use `mysqldump` via scripts.
+
+Manual scripts:
+- `scripts/backup_sqlite.sh`
+- `scripts/backup_mariadb.sh`
+- `scripts/restore_sqlite.sh`
+- `scripts/restore_mariadb.sh`
