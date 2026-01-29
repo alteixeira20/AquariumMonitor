@@ -111,7 +111,8 @@ async def init_db(
             claimed_at TEXT,
             is_active INTEGER NOT NULL,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY(owner_user_id) REFERENCES users(id)
         );
 
         CREATE TABLE IF NOT EXISTS aquarium_devices (

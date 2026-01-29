@@ -7,6 +7,7 @@ AquariumMonitor supports SQLite by default and MariaDB as an optional upgrade.
 - Uses runtime schema creation for fast setup.
 - Durable by default (WAL + FULL sync).
 - Backups are supported with a rolling retention window.
+- New columns are added automatically on startup when the schema evolves.
 
 Key settings:
 - `DATABASE_URL=sqlite:///./data/app.db`
