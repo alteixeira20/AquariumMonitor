@@ -1,0 +1,54 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: aquariummonitor_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-aquarium}
+      MARIADB_USER: ${DB_USER:-aquarium_app}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-change-me}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-change-me}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aquariummonitor_net
+
+  aquariummonitor_backend:
+    build:
+      context: ../apps/backend
+      dockerfile: Dockerfile
+    container_name: aquariummonitor_backend
+    restart: unless-stopped
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      STORAGE_BACKEND: mariadb
+      DB_HOST: aquariummonitor_mariadb
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-aquarium}
+      DB_USER: ${DB_USER:-aquarium_app}
+      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+    ports:
+      - "8000:8000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - aquariummonitor_net
+
+volumes:
+  mariadb_data:
+
+networks:
+  aquariummonitor_net:
+    name: aquariummonitor_net

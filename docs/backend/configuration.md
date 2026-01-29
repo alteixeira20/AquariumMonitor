@@ -1,6 +1,6 @@
 # Configuration
 
-All configuration is driven by environment variables (see `.env.example` in the backend root).
+All configuration is driven by environment variables (see `apps/backend/.env.example`).
 
 ## Core
 - `ENVIRONMENT`: `dev` | `test` | `prod`

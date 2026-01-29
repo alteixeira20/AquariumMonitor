@@ -9,7 +9,7 @@ AquariumMonitor is designed for single‑node hosting (home server or Raspberry 
 ## Configure
 1) Copy env file:
    ```
-   cp .env.example .env
+   cp apps/backend/.env.example apps/backend/.env
    ```
 2) Set secrets:
    - `JWT_SECRET`
@@ -24,7 +24,7 @@ AquariumMonitor is designed for single‑node hosting (home server or Raspberry 
 docker compose -f infra/docker-compose.sqlite.yml up -d --build
 ```
 
-SQLite data lives in `./data/app.db`.
+SQLite data lives in `apps/backend/data/app.db`.
 
 ## MariaDB (optional)
 ```

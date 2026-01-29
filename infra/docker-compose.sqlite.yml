@@ -1,0 +1,21 @@
+services:
+  aquariummonitor_backend:
+    build:
+      context: ../apps/backend
+      dockerfile: Dockerfile
+    container_name: aquariummonitor_backend
+    restart: unless-stopped
+    env_file:
+      - ../apps/backend/.env
+    environment:
+      STORAGE_BACKEND: sqlite
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/app.db}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../apps/backend/data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

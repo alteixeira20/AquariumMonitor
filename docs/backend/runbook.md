@@ -3,21 +3,21 @@
 ## Start / stop
 SQLite:
 ```
-docker compose -f docker-compose.sqlite.yml up -d
+docker compose -f infra/docker-compose.sqlite.yml up -d
 
-docker compose -f docker-compose.sqlite.yml down
+docker compose -f infra/docker-compose.sqlite.yml down
 ```
 
 MariaDB:
 ```
-docker compose up -d
+docker compose -f infra/docker-compose.yml up -d
 
-docker compose down
+docker compose -f infra/docker-compose.yml down
 ```
 
 ## Logs
 ```
-docker logs -f aquamonitor_backend
+docker logs -f aquariummonitor_backend
 ```
 
 ## Health checks
