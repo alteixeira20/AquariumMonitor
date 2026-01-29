@@ -21,14 +21,14 @@ AquariumMonitor is designed for single‑node hosting (home server or Raspberry 
 
 ## SQLite (recommended)
 ```
-docker compose -f docker-compose.sqlite.yml up -d --build
+docker compose -f infra/docker-compose.sqlite.yml up -d --build
 ```
 
 SQLite data lives in `./data/app.db`.
 
 ## MariaDB (optional)
 ```
-docker compose up -d --build
+docker compose -f infra/docker-compose.yml up -d --build
 ```
 
 ## First‑run setup
