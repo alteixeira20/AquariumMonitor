@@ -1,0 +1,80 @@
+[project]
+name = "iot-aquarium-backend"
+version = "0.1.0"
+description = "Async FastAPI backend for IoT aquarium monitoring with MariaDB and SQLite support."
+authors = [{ name = "Alexandre Teixeira" }]
+requires-python = ">=3.12"
+readme = "README.md"
+
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic>=2.0",
+    "python-dotenv",
+    "python-json-logger",
+]
+
+# Black (Formatter)
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+skip-string-normalization = false
+
+# Ruff (Linter + Formatter)
+[tool.ruff]
+line-length = 100
+extend-exclude = ["docs", "migrations"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",      # Pycodestyle (whitespace, indentation, naming)
+    "W",      # Pycodestyle warnings
+    "F",      # Pyflakes (unused variables, undefined names)
+    "I",      # Import sorting
+    "C90",    # McCabe complexity
+    "UP",     # Modern Python upgrades
+    "B",      # Bugbear (enterprise-grade strictness)
+    "ANN",    # Type annotation rules
+    "N",      # Naming conventions (snake_case, PascalCase, etc.)
+    "PL",     # Pylint rules (more strict enterprise checks)
+    "PT",     # Pytest style
+    "RUF",    # Ruff-specific additional checks
+]
+
+ignore = [
+    "ANN204",  # allow missing return type on __init__
+    "ANN201",  # allow missing return type for private "_functions"
+    "ANN202",  # allow missing return type for inner functions
+    "PLR2004", # disable magic number rule
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/**/__init__.py" = ["ANN"]
+"app/**/_*.py" = ["ANN"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+# Pytest
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q -rN --disable-warnings --no-header --no-summary"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "sqlite_only: tests that require SQLite backend",
+    "memory_only: tests specific to in-memory backend",
+    "db_seed_only: seeds the database with sample data for inspection",
+]

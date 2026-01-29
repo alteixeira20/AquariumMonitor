@@ -1,0 +1,32 @@
+# FastAPI Framework & Server
+fastapi                     # API framework
+uvicorn[standard]           # ASGI server with uvloop, httptools, websockets
+
+# Configuration & Environment
+pydantic                    # Data validation / models (Pydantic v2)
+pydantic-settings           # Settings management for Pydantic v2
+python-dotenv               # Load environment variables from .env files
+
+# Logging
+python-json-logger          # Structured JSON logs for production
+
+# Database / Persistence
+aiosqlite                   # Async SQLite driver
+SQLAlchemy                  # ORM + async support for MariaDB
+alembic                     # Database migrations
+asyncmy                     # Async MariaDB driver
+PyMySQL                     # Sync MariaDB driver for Alembic
+
+# Auth / JWT
+PyJWT
+bcrypt==4.0.1
+
+
+# Development Tooling
+ruff                        # Linter (fast & strict)
+black                       # Code formatter enforcing consistent style
+
+# Testing
+pytest                      # Test runner
+pytest-asyncio              # Async test support
+httpx                       # Async HTTP client for testing FastAPI endpoints
