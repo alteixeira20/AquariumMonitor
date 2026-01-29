@@ -2,9 +2,6 @@
 
 AquariumMonitor is a single‑owner, self‑hosted system that ingests aquarium sensor data and serves it to a web dashboard. The backend is intentionally simple and strict: clear domain rules, a service layer that enforces them, and storage that can run on SQLite by default or MariaDB when needed.
 
-Keywords: `architecture` `backend` `storage` `device` `dashboard`
-Back: [Docs hub](README.md)
-
 ## System overview
 - **Device or simulator** sends readings (temperature, pH voltage, TDS voltage).
 - **Backend API** validates and stores readings, enforces calibration and attachment rules.

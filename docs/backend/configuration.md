@@ -2,9 +2,6 @@
 
 All configuration is driven by environment variables (see `apps/backend/.env.example`).
 
-Keywords: `configuration` `env` `sqlite` `mariadb` `auth`
-Back: [Docs hub](../README.md)
-
 ## Core
 - `ENVIRONMENT`: `dev` | `test` | `prod`
 - `DEBUG`: `true` / `false`

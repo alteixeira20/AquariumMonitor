@@ -48,5 +48,3 @@ AquariumMonitor targets DIY aquarists who want a reliable, self-hosted monitorin
 
 ## License
 CC BY-NC 4.0
-
-Keywords: `aquarium monitoring` `self-hosted` `open-source` `IoT` `real-time metrics`

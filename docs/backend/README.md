@@ -2,9 +2,6 @@
 
 The backend is the source of truth for aquariums, devices, calibration, and readings. It is designed for a single owner, with an optional demo user that can view data but cannot modify it.
 
-Keywords: `backend` `api` `calibration` `readings` `stats`
-Back: [Docs hub](../README.md)
-
 ## Key responsibilities
 - User setup and authentication
 - Aquarium and device management

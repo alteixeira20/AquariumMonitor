@@ -2,9 +2,6 @@
 
 The test suite is designed to protect the API contract, the domain rules, and storage behavior.
 
-Keywords: `tests` `api contract` `domain rules` `persistence` `pytest`
-Back: [Docs hub](../README.md)
-
 ## How to run
 - `make test` — in‑memory backend (fast feedback)
 - `make test-sqlite` — SQLite backend + seeded database

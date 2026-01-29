@@ -2,9 +2,6 @@
 
 Base URL: `/v1`
 
-Keywords: `api` `endpoints` `auth` `devices` `readings`
-Back: [Docs hub](../README.md)
-
 ## Auth & setup
 - `GET /setup/status` — returns whether the owner exists and whether demo is enabled.
 - `POST /setup` — creates the owner account on first run.

@@ -2,9 +2,6 @@
 
 AquariumMonitor supports SQLite by default and MariaDB as an optional upgrade.
 
-Keywords: `storage` `sqlite` `mariadb` `backups` `retention`
-Back: [Docs hub](../README.md)
-
 ## SQLite (default)
 - Best fit for single‑node self‑hosting.
 - Uses runtime schema creation for fast setup.

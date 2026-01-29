@@ -2,9 +2,6 @@
 
 This project uses small, proven building blocks that run well on home servers while staying scalable.
 
-Keywords: `fastapi` `python` `sqlite` `mariadb` `docker`
-Back: [Docs hub](README.md)
-
 ## Backend (current)
 <details>
 <summary><strong>FastAPI</strong></summary>
