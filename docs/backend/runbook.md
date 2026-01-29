@@ -1,5 +1,8 @@
 # Operations runbook
 
+Keywords: `operations` `docker` `health checks` `backups` `restore`
+Back: [Docs hub](../README.md)
+
 ## Start / stop
 SQLite:
 ```

@@ -2,6 +2,9 @@
 
 AquariumMonitor is designed for single‑node hosting (home server or Raspberry Pi). SQLite is the default; MariaDB is optional.
 
+Keywords: `self-hosting` `docker` `sqlite` `mariadb` `backups`
+Back: [Docs hub](README.md)
+
 ## Prerequisites
 - Docker + Docker Compose
 - Port 8000 available (or use a reverse proxy)

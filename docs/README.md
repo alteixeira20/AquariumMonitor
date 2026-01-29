@@ -2,6 +2,8 @@
 
 Clear, practical docs for an open-source, self-hosted aquarium monitoring system.
 
+Keywords: `documentation` `architecture` `backend` `frontend` `self-hosting`
+
 ## Start here
 - [Architecture](architecture.md)
 - [Domain concepts](concepts.md)

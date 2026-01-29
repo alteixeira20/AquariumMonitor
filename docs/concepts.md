@@ -2,6 +2,9 @@
 
 These concepts define how the system models aquarium monitoring data.
 
+Keywords: `domain` `sensors` `calibration` `devices` `aquariums`
+Back: [Docs hub](README.md)
+
 ## Sensors
 - **Temperature (°C)** — primary safety metric.
 - **pH** — acidity/alkalinity derived from probe voltage.

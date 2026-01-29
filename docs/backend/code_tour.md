@@ -2,6 +2,9 @@
 
 A quick map of the backend codebase.
 
+Keywords: `code tour` `services` `repositories` `domain` `api`
+Back: [Docs hub](../README.md)
+
 ## Entry point
 - `app/main.py` — creates the FastAPI app, installs middleware, and wires services.
 

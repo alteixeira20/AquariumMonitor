@@ -9,6 +9,8 @@
 <p align="center">Open-source, self-hosted aquarium monitoring system with real-time metrics, device simulation, and a clean API for DIY builders.</p>
 <p align="center"><sub><em>Single-owner by design, demo-ready for showcases, built to be extended with custom hardware.</em></sub></p>
 
+Keywords: `aquarium monitoring` `self-hosted` `open-source` `IoT` `real-time metrics`
+
 ## Table of Contents
 1. [At a Glance](#at-a-glance)
 2. [About](#about)
