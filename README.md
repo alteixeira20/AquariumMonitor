@@ -47,4 +47,4 @@ AquariumMonitor targets DIY aquarists who want a reliable, self-hosted monitorin
 - Full DIY hardware tutorial
 
 ## License
-CC BY-NC 4.0
+[CC BY-NC 4.0](LICENSE)
