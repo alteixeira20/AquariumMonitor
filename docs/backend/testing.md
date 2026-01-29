@@ -10,8 +10,34 @@ From the repo root, you can also run:
 - `make backend-test`
 - `make backend-test-sqlite`
 
-Optional smoke test (requires `jq`):
-- `apps/backend/scripts/manual_test.sh`
+## Manual smoke test (API)
+The manual tester performs a full setup → login → device → calibration → reading flow.
+
+Prerequisites:
+- `curl` and `jq`
+- API running locally (see below)
+
+Run:
+```
+ADMIN_EMAIL=owner@example.com ADMIN_PASSWORD=change-me \
+apps/backend/scripts/manual_test.sh
+```
+
+Notes:
+- Uses `BASE_URL` (default: `http://localhost:8000`)
+- If the instance is unconfigured, the script runs setup first
+
+## Starting the API locally
+From `apps/backend`:
+```
+make install
+make dev
+```
+
+From the repo root:
+```
+make backend-dev
+```
 
 ## What it validates
 - **API contract**: real HTTP requests against FastAPI endpoints.
