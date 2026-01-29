@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.api.deps import require_service
 from app.core.config import get_settings
 from app.core.jwt_utils import create_jwt
 from app.schemas.auth_schema import LoginRequest, LoginResponse
@@ -15,10 +16,7 @@ router = APIRouter()
 
 
 def get_user_service(request: Request) -> UserService:
-    service = getattr(request.app.state, "user_service", None)
-    if service is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="User auth not configured")
-    return service
+    return require_service(request, "user_service", "User service")
 
 
 ServiceDep = Annotated[UserService, Depends(get_user_service)]
@@ -30,7 +28,9 @@ async def login(payload: LoginRequest, service: ServiceDep) -> LoginResponse:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Setup required")
 
     settings = get_settings()
-    if settings.demo_enabled and payload.email.strip().lower() == settings.demo_username.strip().lower():
+    if settings.demo_enabled and (
+        payload.email.strip().lower() == settings.demo_username.strip().lower()
+    ):
         if payload.password != settings.demo_password:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         owner = await service.get_primary_user()

@@ -8,8 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.deps import require_service
 from app.core.auth import UserContext, require_write_access, user_context_dependency
-from app.schemas.calibration_schema import CalibrationPointCreateRequest, CalibrationPointResponse
+from app.schemas.calibration_schema import (
+    CalibrationPointCreateRequest,
+    CalibrationPointResponse,
+)
 from app.schemas.device_schema import (
     DeviceApiKeyRevokeRequest,
     DeviceApiKeyResponse,
@@ -27,40 +31,27 @@ from app.services.reading_service import ReadingService
 router = APIRouter()
 
 
-# Proper dependency to access app.state.device_service
 def get_device_service(request: Request) -> DeviceService:
-    return request.app.state.device_service
+    return require_service(request, "device_service", "Device service")
 
 
 ServiceDep = Annotated[DeviceService, Depends(get_device_service)]
 
 
 def get_aquarium_device_service(request: Request) -> AquariumDeviceService:
-    service = getattr(request.app.state, "aquarium_device_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Aquarium-device service not configured")
-    return service
+    return require_service(request, "aquarium_device_service", "Aquarium-device service")
 
 
 def get_device_status_service(request: Request) -> DeviceStatusService:
-    service = getattr(request.app.state, "device_status_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Device status service not configured")
-    return service
+    return require_service(request, "device_status_service", "Device status service")
 
 
 def get_device_api_key_service(request: Request) -> DeviceApiKeyService:
-    service = getattr(request.app.state, "device_api_key_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Device API keys not configured")
-    return service
+    return require_service(request, "device_api_key_service", "Device API keys")
 
 
 def get_ph_calibration_service(request: Request) -> PhCalibrationService:
-    service = getattr(request.app.state, "ph_calibration_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Calibration service not configured")
-    return service
+    return require_service(request, "ph_calibration_service", "Calibration service")
 
 
 ApiKeyServiceDep = Annotated[DeviceApiKeyService, Depends(get_device_api_key_service)]
@@ -69,8 +60,10 @@ UserContextDep = Annotated[UserContext, Depends(user_context_dependency)]
 WriteAccessDep = Annotated[UserContext, Depends(require_write_access)]
 DeviceStatusServiceDep = Annotated[DeviceStatusService, Depends(get_device_status_service)]
 CalibrationServiceDep = Annotated[PhCalibrationService, Depends(get_ph_calibration_service)]
+
+
 def get_reading_service(request: Request) -> ReadingService:
-    return request.app.state.reading_service
+    return require_service(request, "reading_service", "Reading service")
 
 
 ReadingServiceDep = Annotated[ReadingService, Depends(get_reading_service)]

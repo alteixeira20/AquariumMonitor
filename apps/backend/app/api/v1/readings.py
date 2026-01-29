@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.deps import require_service
 from app.core.auth import UserContext, device_api_key_dependency, user_context_dependency
 from app.schemas.reading_schema import (
     ReadingCreateRequest,
@@ -19,14 +20,11 @@ from app.services.reading_service import ReadingService
 
 
 def get_reading_service(request: Request) -> ReadingService:
-    return request.app.state.reading_service
+    return require_service(request, "reading_service", "Reading service")
 
 
 def get_aquarium_device_service(request: Request) -> AquariumDeviceService:
-    service = getattr(request.app.state, "aquarium_device_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Aquarium-device service not configured")
-    return service
+    return require_service(request, "aquarium_device_service", "Aquarium-device service")
 
 
 ServiceDep = Annotated[ReadingService, Depends(get_reading_service)]

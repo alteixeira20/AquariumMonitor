@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from app.api.deps import require_service
 from app.core.config import get_settings
 from app.core.jwt_utils import create_jwt
 from app.schemas.setup_schema import SetupRequest, SetupResponse, SetupStatusResponse
@@ -13,10 +14,7 @@ router = APIRouter()
 
 
 def get_user_service(request: Request) -> UserService:
-    service = getattr(request.app.state, "user_service", None)
-    if service is None:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail="User auth not configured")
-    return service
+    return require_service(request, "user_service", "User service")
 
 
 ServiceDep = Annotated[UserService, Depends(get_user_service)]

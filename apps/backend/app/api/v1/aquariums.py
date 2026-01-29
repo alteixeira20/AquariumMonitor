@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.api.deps import require_service
 from app.core.auth import UserContext, require_write_access, user_context_dependency
 from app.domain.aquarium import Aquarium
 from app.schemas.aquarium_schema import AquariumCreateRequest, AquariumResponse
@@ -20,28 +21,19 @@ router = APIRouter()
 
 
 def get_aquarium_service(request: Request) -> AquariumService:
-    service = getattr(request.app.state, "aquarium_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Aquarium service not configured")
-    return service
+    return require_service(request, "aquarium_service", "Aquarium service")
 
 
 def get_aquarium_device_service(request: Request) -> AquariumDeviceService:
-    service = getattr(request.app.state, "aquarium_device_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Aquarium-device service not configured")
-    return service
+    return require_service(request, "aquarium_device_service", "Aquarium-device service")
 
 
 def get_device_service(request: Request) -> DeviceService:
-    return request.app.state.device_service
+    return require_service(request, "device_service", "Device service")
 
 
 def get_aquarium_stats_service(request: Request) -> AquariumStatsService:
-    service = getattr(request.app.state, "aquarium_stats_service", None)
-    if service is None:
-        raise HTTPException(status_code=503, detail="Aquarium stats service not configured")
-    return service
+    return require_service(request, "aquarium_stats_service", "Aquarium stats service")
 
 
 AquariumServiceDep = Annotated[AquariumService, Depends(get_aquarium_service)]
@@ -50,6 +42,7 @@ AquariumStatsServiceDep = Annotated[AquariumStatsService, Depends(get_aquarium_s
 DeviceServiceDep = Annotated[DeviceService, Depends(get_device_service)]
 UserContextDep = Annotated[UserContext, Depends(user_context_dependency)]
 WriteAccessDep = Annotated[UserContext, Depends(require_write_access)]
+
 
 class _StatsFilters(BaseModel):
     from_dt: datetime | None = Field(None, alias="from")

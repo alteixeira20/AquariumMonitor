@@ -57,6 +57,7 @@ Point payload:
 ## Readings
 - `POST /readings/{device_id}` — submit a reading (device API key required).
 - `GET /readings/{device_id}` — list readings (JWT required).
+- `GET /readings/{device_id}/paginated` — list readings with pagination.
 - `GET /readings/{device_id}/latest` — most recent reading.
 - `GET /readings/{device_id}/series` — time‑series buckets for charts.
 
