@@ -6,7 +6,7 @@
 </p>
 
 <h1 align="center">AquariumMonitor</h1>
-<p align="center">Self-hosted aquarium monitoring system with real-time metrics, device simulation, and a clean API for DIY builders.</p>
+<p align="center">Open-source, self-hosted aquarium monitoring system with real-time metrics, device simulation, and a clean API for DIY builders.</p>
 <p align="center"><sub><em>Single-owner by design, demo-friendly for showcases, built to be extended with custom hardware.</em></sub></p>
 
 ## Table of Contents
@@ -18,11 +18,11 @@
 6. [License](#license)
 
 ## At a Glance
+- Open-source aquarium monitoring system built for self-hosted deployments.
 - Real-time telemetry ingestion with strict validation and calibration gates.
 - SQLite default with MariaDB optional for heavier workloads.
-- Stats and time-series endpoints designed for dashboards.
+- Stats and time-series endpoints designed for live dashboards.
 - Demo access is optional and read-only for safe public previews.
-- Self-hosting focused with backups and predictable ops.
 
 ## About
 AquariumMonitor targets DIY aquarists who want a reliable, self-hosted system that can grow from a single tank to multi-device setups. The backend prioritizes correctness and clarity so it stays approachable for peers who want to learn or extend it.

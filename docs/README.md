@@ -1,6 +1,6 @@
 # Documentation
 
-Clear, practical docs that map directly to the system’s structure.
+Clear, practical docs for an open-source, self-hosted aquarium monitoring system.
 
 ## Start here
 - [Architecture](architecture.md)
