@@ -51,5 +51,9 @@ MariaDB:
 ./scripts/backup_mariadb.sh
 ```
 
+Script env (optional):
+- `DB_PATH` and `BACKUP_DIR` for SQLite
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` for MariaDB
+
 See also:
 - [Backend configuration](backend/configuration.md)

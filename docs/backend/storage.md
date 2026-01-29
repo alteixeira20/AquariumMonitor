@@ -36,3 +36,9 @@ Manual scripts:
 - `scripts/backup_mariadb.sh`
 - `scripts/restore_sqlite.sh`
 - `scripts/restore_mariadb.sh`
+
+Script variables:
+- `DB_PATH` (default: `data/app.db`) for SQLite backup/restore
+- `BACKUP_DIR` (default: `backups`) for backup output
+- `BACKUP_RETENTION_DAYS` for SQLite backup pruning
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` for MariaDB scripts
