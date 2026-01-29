@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 
 from app.api.router import api_router
-from app.core.backup import backup_loop
+from app.core.backup import backup_loop, resolve_sqlite_path
 from app.core.config import Settings, get_settings
 from app.core.exceptions import (
     DomainError,
@@ -129,14 +129,13 @@ def _should_run_backups(settings: Settings) -> bool:
 
 
 async def _init_sqlite_backend(app: FastAPI, settings: Settings) -> aiosqlite.Connection:
-    db_url = settings.database_url
-    db_path = db_url.replace("sqlite:///", "")
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    db_path = resolve_sqlite_path(settings.database_url)
+    os.makedirs(db_path.parent, exist_ok=True)
     db_conn = await aiosqlite.connect(
-        db_path, timeout=settings.sqlite_busy_timeout_ms / 1000
+        str(db_path), timeout=settings.sqlite_busy_timeout_ms / 1000
     )
     await init_db(
-        db_path,
+        str(db_path),
         db_conn,
         journal_mode=settings.sqlite_journal_mode,
         synchronous=settings.sqlite_synchronous,
@@ -313,8 +312,8 @@ def create_app() -> FastAPI:
         title=settings.project_name,
         version=settings.version,
         description=settings.project_description,
-        contact={"name": "API Maintainer", "email": "dev@example.com"},
-        license_info={"name": "MIT"},
+        contact={"name": "Maintainer"},
+        license_info={"name": "CC BY-NC 4.0"},
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,

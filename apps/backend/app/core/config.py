@@ -35,21 +35,16 @@ class Settings(BaseSettings):
     )
 
     project_name: str = Field(
-        default="IoT Aquarium Monitoring Backend",
+        default="AquariumMonitor",
         alias="PROJECT_NAME",
     )
     project_description: str = Field(
-        default="FastAPI backend for an IoT aquarium monitoring system.",
+        default="Open-source, self-hosted aquarium monitoring backend.",
         alias="PROJECT_DESCRIPTION",
     )
     version: str = Field(
         default="0.1.0",
         alias="VERSION",
-    )
-
-    api_prefix: str = Field(
-        default="/api",
-        alias="API_PREFIX",
     )
 
     # -------------------------------------------------------------------------
@@ -97,7 +92,6 @@ class Settings(BaseSettings):
     allow_credentials: bool = Field(default=True, alias="CORS_ALLOW_CREDENTIALS")
     allow_methods: str = Field(default="*", alias="CORS_ALLOW_METHODS")
     allow_headers: str = Field(default="*", alias="CORS_ALLOW_HEADERS")
-    auth_token: str = Field(default="", alias="AUTH_TOKEN")
     demo_enabled: bool = Field(default=True, alias="DEMO_ENABLED")
     demo_username: str = Field(default="demo", alias="DEMO_USERNAME")
     demo_password: str = Field(default="password", alias="DEMO_PASSWORD")
