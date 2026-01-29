@@ -28,10 +28,6 @@ class DeviceService:
         *,
         owner_user_id: UUID | None = None,
     ) -> Device:
-        """
-        Expected by test suite:
-        register_device(name="Tank1", location="Office")
-        """
         device = await self.repository.create(
             name=name, location=location, owner_user_id=owner_user_id
         )

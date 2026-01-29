@@ -34,14 +34,23 @@ from app.repositories.mariadb_repository import (
     MariaDbReadingRepository,
     MariaDbUserRepository,
 )
+from app.repositories.base_repository import (
+    AquariumDeviceRepository,
+    AquariumRepository,
+    DeviceApiKeyRepository,
+    DeviceRepository,
+    PhCalibrationRepository,
+    ReadingRepository,
+    UserRepository,
+)
 from app.repositories.memory_repository import (
-    MemoryDeviceApiKeyRepository,
-    MemoryDeviceRepository,
     MemoryAquariumDeviceRepository,
     MemoryAquariumRepository,
-    MemoryUserRepository,
+    MemoryDeviceApiKeyRepository,
+    MemoryDeviceRepository,
     MemoryPhCalibrationRepository,
     MemoryReadingRepository,
+    MemoryUserRepository,
 )
 from app.repositories.sqlite_repository import (
     SqliteAquariumDeviceRepository,
@@ -63,47 +72,52 @@ from app.services.ph_calibration_service import PhCalibrationService
 from app.services.reading_service import ReadingService
 from app.services.user_service import UserService
 
-# ----------------------------------------------------------------------
-# Default to in-memory; can be replaced in lifespan when storage_backend=sqlite
-device_repository = MemoryDeviceRepository()
-reading_repository = MemoryReadingRepository()
-ph_calibration_repository = MemoryPhCalibrationRepository()
-device_api_key_repository = MemoryDeviceApiKeyRepository()
-aquarium_device_repository = MemoryAquariumDeviceRepository()
-aquarium_repository = MemoryAquariumRepository()
-user_repository = MemoryUserRepository()
-device_service = DeviceService(device_repository)
-reading_service = ReadingService(
-    device_repository,
-    reading_repository,
-    ph_calibration_repository,
-    aquarium_device_repository,
-)
-aquarium_service = AquariumService(aquarium_repository)
-aquarium_device_service = AquariumDeviceService(
-    aquarium_repository,
-    device_repository,
-    aquarium_device_repository,
-    ph_calibration_repository,
-)
-aquarium_stats_service = AquariumStatsService(
-    aquarium_repository,
-    aquarium_device_repository,
-    reading_repository,
-)
-device_status_service = DeviceStatusService(
-    aquarium_repository,
-    aquarium_device_repository,
-    reading_repository,
-)
-ph_calibration_service = PhCalibrationService(
-    device_repository,
-    aquarium_repository,
-    aquarium_device_repository,
-    reading_repository,
-    ph_calibration_repository,
-)
-user_service = UserService(user_repository)
+def _init_services(
+    app: FastAPI,
+    *,
+    device_repo: DeviceRepository,
+    reading_repo: ReadingRepository,
+    ph_calibration_repo: PhCalibrationRepository,
+    device_api_key_repo: DeviceApiKeyRepository,
+    user_repo: UserRepository,
+    aquarium_repo: AquariumRepository,
+    aquarium_device_repo: AquariumDeviceRepository,
+) -> None:
+    app.state.device_service = DeviceService(device_repo)
+    app.state.reading_service = ReadingService(
+        device_repo,
+        reading_repo,
+        ph_calibration_repo,
+        aquarium_device_repo,
+    )
+    app.state.device_api_key_service = DeviceApiKeyService(
+        device_repo, device_api_key_repo
+    )
+    app.state.user_service = UserService(user_repo)
+    app.state.aquarium_service = AquariumService(aquarium_repo)
+    app.state.aquarium_device_service = AquariumDeviceService(
+        aquarium_repo,
+        device_repo,
+        aquarium_device_repo,
+        ph_calibration_repo,
+    )
+    app.state.aquarium_stats_service = AquariumStatsService(
+        aquarium_repo,
+        aquarium_device_repo,
+        reading_repo,
+    )
+    app.state.device_status_service = DeviceStatusService(
+        aquarium_repo,
+        aquarium_device_repo,
+        reading_repo,
+    )
+    app.state.ph_calibration_service = PhCalibrationService(
+        device_repo,
+        aquarium_repo,
+        aquarium_device_repo,
+        reading_repo,
+        ph_calibration_repo,
+    )
 
 def _reset_app_state(app: FastAPI) -> None:
     app.state.db_path = None
@@ -116,6 +130,7 @@ def _reset_app_state(app: FastAPI) -> None:
     app.state.aquarium_stats_service = None
     app.state.device_status_service = None
     app.state.ph_calibration_service = None
+    app.state.user_service = None
     app.state.db_conn = None
     app.state.backup_task = None
 
@@ -150,36 +165,15 @@ async def _init_sqlite_backend(app: FastAPI, settings: Settings) -> aiosqlite.Co
     sqlite_aquarium_repo = SqliteAquariumRepository(db_conn)
     sqlite_aquarium_device_repo = SqliteAquariumDeviceRepository(db_conn)
 
-    app.state.device_service = DeviceService(sqlite_device_repo)
-    app.state.reading_service = ReadingService(
-        sqlite_device_repo,
-        sqlite_reading_repo,
-        sqlite_ph_calibration_repo,
-        sqlite_aquarium_device_repo,
-    )
-    app.state.device_api_key_service = DeviceApiKeyService(
-        sqlite_device_repo, sqlite_device_api_key_repo
-    )
-    app.state.user_service = UserService(sqlite_user_repo)
-    app.state.aquarium_service = AquariumService(sqlite_aquarium_repo)
-    app.state.aquarium_device_service = AquariumDeviceService(
-        sqlite_aquarium_repo,
-        sqlite_device_repo,
-        sqlite_aquarium_device_repo,
-        sqlite_ph_calibration_repo,
-    )
-    app.state.aquarium_stats_service = AquariumStatsService(
-        sqlite_aquarium_repo, sqlite_aquarium_device_repo, sqlite_reading_repo
-    )
-    app.state.device_status_service = DeviceStatusService(
-        sqlite_aquarium_repo, sqlite_aquarium_device_repo, sqlite_reading_repo
-    )
-    app.state.ph_calibration_service = PhCalibrationService(
-        sqlite_device_repo,
-        sqlite_aquarium_repo,
-        sqlite_aquarium_device_repo,
-        sqlite_reading_repo,
-        sqlite_ph_calibration_repo,
+    _init_services(
+        app,
+        device_repo=sqlite_device_repo,
+        reading_repo=sqlite_reading_repo,
+        ph_calibration_repo=sqlite_ph_calibration_repo,
+        device_api_key_repo=sqlite_device_api_key_repo,
+        user_repo=sqlite_user_repo,
+        aquarium_repo=sqlite_aquarium_repo,
+        aquarium_device_repo=sqlite_aquarium_device_repo,
     )
     app.state.db_conn = db_conn
     app.state.db_path = db_path
@@ -200,36 +194,36 @@ def _init_mariadb_backend(app: FastAPI, settings: Settings) -> None:
     mariadb_api_key_repo = MariaDbDeviceApiKeyRepository(session_factory)
     mariadb_ph_calibration_repo = MariaDbPhCalibrationRepository(session_factory)
 
-    app.state.device_service = DeviceService(mariadb_device_repo)
-    app.state.reading_service = ReadingService(
-        mariadb_device_repo,
-        mariadb_reading_repo,
-        mariadb_ph_calibration_repo,
-        mariadb_aquarium_device_repo,
+    _init_services(
+        app,
+        device_repo=mariadb_device_repo,
+        reading_repo=mariadb_reading_repo,
+        ph_calibration_repo=mariadb_ph_calibration_repo,
+        device_api_key_repo=mariadb_api_key_repo,
+        user_repo=mariadb_user_repo,
+        aquarium_repo=mariadb_aquarium_repo,
+        aquarium_device_repo=mariadb_aquarium_device_repo,
     )
-    app.state.user_service = UserService(mariadb_user_repo)
-    app.state.aquarium_service = AquariumService(mariadb_aquarium_repo)
-    app.state.aquarium_device_service = AquariumDeviceService(
-        mariadb_aquarium_repo,
-        mariadb_device_repo,
-        mariadb_aquarium_device_repo,
-        mariadb_ph_calibration_repo,
-    )
-    app.state.device_api_key_service = DeviceApiKeyService(
-        mariadb_device_repo, mariadb_api_key_repo
-    )
-    app.state.aquarium_stats_service = AquariumStatsService(
-        mariadb_aquarium_repo, mariadb_aquarium_device_repo, mariadb_reading_repo
-    )
-    app.state.device_status_service = DeviceStatusService(
-        mariadb_aquarium_repo, mariadb_aquarium_device_repo, mariadb_reading_repo
-    )
-    app.state.ph_calibration_service = PhCalibrationService(
-        mariadb_device_repo,
-        mariadb_aquarium_repo,
-        mariadb_aquarium_device_repo,
-        mariadb_reading_repo,
-        mariadb_ph_calibration_repo,
+
+
+def _init_memory_backend(app: FastAPI) -> None:
+    memory_device_repo = MemoryDeviceRepository()
+    memory_reading_repo = MemoryReadingRepository()
+    memory_ph_calibration_repo = MemoryPhCalibrationRepository()
+    memory_device_api_key_repo = MemoryDeviceApiKeyRepository()
+    memory_user_repo = MemoryUserRepository()
+    memory_aquarium_repo = MemoryAquariumRepository()
+    memory_aquarium_device_repo = MemoryAquariumDeviceRepository()
+
+    _init_services(
+        app,
+        device_repo=memory_device_repo,
+        reading_repo=memory_reading_repo,
+        ph_calibration_repo=memory_ph_calibration_repo,
+        device_api_key_repo=memory_device_api_key_repo,
+        user_repo=memory_user_repo,
+        aquarium_repo=memory_aquarium_repo,
+        aquarium_device_repo=memory_aquarium_device_repo,
     )
 
 
@@ -255,32 +249,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     elif settings.storage_backend == "mariadb":
         _init_mariadb_backend(app, settings)
     else:
-        # In-memory defaults
-        app.state.device_service = device_service
-        app.state.reading_service = reading_service
-        app.state.device_api_key_service = DeviceApiKeyService(
-            device_repository, device_api_key_repository
-        )
-        memory_user_repo = MemoryUserRepository()
-        memory_aquarium_repo = MemoryAquariumRepository()
-        app.state.user_service = UserService(memory_user_repo)
-        app.state.aquarium_service = AquariumService(memory_aquarium_repo)
-        app.state.aquarium_device_service = AquariumDeviceService(
-            memory_aquarium_repo, device_repository, aquarium_device_repository, ph_calibration_repository
-        )
-        app.state.aquarium_stats_service = AquariumStatsService(
-            memory_aquarium_repo, aquarium_device_repository, reading_repository
-        )
-        app.state.device_status_service = DeviceStatusService(
-            memory_aquarium_repo, aquarium_device_repository, reading_repository
-        )
-        app.state.ph_calibration_service = PhCalibrationService(
-            device_repository,
-            memory_aquarium_repo,
-            aquarium_device_repository,
-            reading_repository,
-            ph_calibration_repository,
-        )
+        _init_memory_backend(app)
 
     if settings.storage_backend == "sqlite" and _should_run_backups(settings):
         db_path = getattr(app.state, "db_path", None)
@@ -322,18 +291,8 @@ def create_app() -> FastAPI:
     # Mount API exactly as tests expect (NO extra /api prefix)
     app.include_router(api_router)
 
-    # Expose service singletons on FastAPI state so routers can depend on them.
-    app.state.device_service = device_service
-    app.state.reading_service = reading_service
-    app.state.device_api_key_service = DeviceApiKeyService(
-        device_repository, device_api_key_repository
-    )
-    app.state.user_service = user_service
-    app.state.aquarium_service = aquarium_service
-    app.state.aquarium_device_service = aquarium_device_service
-    app.state.aquarium_stats_service = aquarium_stats_service
-    app.state.device_status_service = device_status_service
-    app.state.ph_calibration_service = ph_calibration_service
+    # Default to memory-backed services before lifespan runs.
+    _init_memory_backend(app)
 
     # Middleware & exception handlers
     install_request_logging(app)

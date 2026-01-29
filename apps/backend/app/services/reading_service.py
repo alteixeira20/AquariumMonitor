@@ -21,7 +21,7 @@ class ReadingService:
     - Validating device existence
     - Constructing Reading domain objects
     - Running Reading.process() to compute pH + TDS
-    - Persisting readings (in-memory for now)
+    - Persisting readings
     - Returning processed readings (with pagination support)
     """
 
@@ -52,12 +52,12 @@ class ReadingService:
         Creates and processes a reading for the given device.
         """
 
-        # Step 1: Validate the device exists
+        # Ensure the device exists
         device = await self.device_repo.get(device_id)
         if device is None:
             raise ValueError(f"Device with ID {device_id} not found")
 
-        # Step 1.5: Require device is attached and calibrated
+        # Require device is attached and calibrated
         aquarium_id = await self.aquarium_device_repo.get_active_aquarium_for_device(device_id)
         if aquarium_id is None:
             raise DomainError(
@@ -74,7 +74,7 @@ class ReadingService:
                 error="conflict",
             )
 
-        # Step 2: Construct domain Reading
+        # Build domain reading
         reading = Reading(
             device_id=device_id,
             temperature_c=temperature_c,
@@ -82,14 +82,14 @@ class ReadingService:
             raw_tds_voltage=raw_tds_voltage,
         )
 
-        # Step 3: Run domain computations
+        # Compute derived values
         reading.process(calibration_points=calibration_points)
 
-        # Step 4: Persist
+        # Persist
         await self.reading_repo.create(reading)
         inc_readings_created()
 
-        # Step 5: Return processed reading
+        # Return processed reading
         return reading
 
     # ------------------------------------------------------------
