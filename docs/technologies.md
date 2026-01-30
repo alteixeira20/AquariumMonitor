@@ -60,10 +60,20 @@ Consistent linting and formatting so the codebase stays predictable and easy to 
 Reproducible setups for local development and production, with predictable dependency versions.
 </details>
 
-## Frontend (planned)
+## Frontend (current)
 <details>
 <summary><strong>Next.js</strong></summary>
-Server‑rendered dashboard with fast navigation and easy deployment options.
+App Router UI for a fast, structured dashboard that can scale to multi‑page workflows.
+</details>
+
+<details>
+<summary><strong>TypeScript</strong></summary>
+Strong typing for UI state, API responses, and shared domain models between screens.
+</details>
+
+<details>
+<summary><strong>Tailwind CSS</strong></summary>
+Utility‑first styling that keeps layout code close to the components and makes visual tweaks fast.
 </details>
 
 <details>
