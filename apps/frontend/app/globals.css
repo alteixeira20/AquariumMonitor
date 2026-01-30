@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply min-h-screen bg-ocean-900 text-white font-body;
+  background: radial-gradient(circle at top, #122b3a 0%, #0b1b24 55%, #071218 100%);
+}
+
+input {
+  @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40;
+}
+
+input:focus {
+  @apply border-ocean-500/60 outline-none ring-2 ring-ocean-500/20;
+}
+
+.glass-panel {
+  @apply rounded-2xl border border-white/10 bg-ocean-800/80 shadow-ocean backdrop-blur;
+}
+
+.section-divider {
+  position: relative;
+}
+
+.section-divider::after {
+  content: "";
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(79, 209, 197, 0.3), transparent);
+}
