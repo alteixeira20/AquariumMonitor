@@ -50,3 +50,29 @@ make simulator-up
 ```
 
 The simulator stores state in `SIM_STATE_PATH` so it can reuse device IDs and API keys across restarts.
+
+## End‑to‑end demo checklist
+1) Start backend:
+```
+cp apps/backend/.env.example apps/backend/.env
+make prod
+```
+2) Create owner account:
+```
+curl -X POST http://localhost:8000/v1/setup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@example.com","password":"change-me"}'
+```
+3) Start simulator:
+```
+make simulator-up
+```
+4) Login and query data:
+```
+TOKEN=$(curl -s http://localhost:8000/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@example.com","password":"change-me"}' | jq -r .access_token)
+
+curl http://localhost:8000/v1/aquariums \
+  -H "Authorization: Bearer $TOKEN"
+```
