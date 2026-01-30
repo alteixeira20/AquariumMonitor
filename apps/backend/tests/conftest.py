@@ -345,7 +345,7 @@ async def service_bundle(
 
         conn = await aiosqlite.connect(db_path)
         await init_db(db_path, conn)
-        # Ensure a default owner exists for FK constraints.
+        # Ensure default users exist for FK constraints.
         await conn.execute(
             """
             INSERT OR IGNORE INTO users (id, email, password_hash, is_active, created_at)
@@ -354,6 +354,19 @@ async def service_bundle(
             (
                 "00000000-0000-0000-0000-000000000000",
                 "test-owner@example.com",
+                hash_password("password"),
+                1,
+                datetime.utcnow().isoformat(),
+            ),
+        )
+        await conn.execute(
+            """
+            INSERT OR IGNORE INTO users (id, email, password_hash, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "00000000-0000-0000-0000-000000000001",
+                "test-other@example.com",
                 hash_password("password"),
                 1,
                 datetime.utcnow().isoformat(),
