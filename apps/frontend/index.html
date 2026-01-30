@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AquariumMonitor — Setup</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div class="brand-text">
+            <span class="brand-title">AquariumMonitor</span>
+            <span class="brand-subtitle">Self-hosted setup</span>
+          </div>
+        </div>
+        <nav class="header-actions">
+          <button class="ghost-button" type="button">Docs</button>
+          <button class="ghost-button" type="button">Support</button>
+        </nav>
+      </header>
+
+      <main class="content">
+        <section class="hero">
+          <div>
+            <h1>First‑run setup</h1>
+            <p class="lead">
+              Configure storage, backups, and your owner account. You can change
+              most settings later, but storage selection should be made now.
+            </p>
+          </div>
+          <div class="hero-card">
+            <div class="status-pill">
+              <span class="dot"></span>
+              <span>Waiting for backend</span>
+            </div>
+            <div class="hero-metrics">
+              <div>
+                <span class="metric-label">Backend</span>
+                <span class="metric-value">localhost:8000</span>
+              </div>
+              <div>
+                <span class="metric-label">Mode</span>
+                <span class="metric-value">Single owner</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Storage engine</h2>
+            <button class="help-button" data-help="storage">
+              <span>?</span>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="option-grid">
+              <label class="option-card">
+                <input type="radio" name="storage" checked />
+                <span class="option-title">SQLite</span>
+                <span class="option-desc">
+                  Best for single‑node self‑hosting. Zero‑config and reliable.
+                </span>
+              </label>
+              <label class="option-card">
+                <input type="radio" name="storage" />
+                <span class="option-title">MariaDB</span>
+                <span class="option-desc">
+                  Stronger concurrency for multi‑client use and larger systems.
+                </span>
+              </label>
+              <label class="option-card">
+                <input type="radio" name="storage" disabled />
+                <span class="option-title">Postgres</span>
+                <span class="option-desc">Planned. Available in a later release.</span>
+              </label>
+            </div>
+
+            <div class="grid two-col">
+              <div class="field">
+                <label>Database host</label>
+                <input type="text" value="localhost" />
+              </div>
+              <div class="field">
+                <label>Database name</label>
+                <input type="text" value="aquarium" />
+              </div>
+              <div class="field">
+                <label>User</label>
+                <input type="text" value="aquarium_app" />
+              </div>
+              <div class="field">
+                <label>Password</label>
+                <input type="password" placeholder="••••••••" />
+              </div>
+            </div>
+
+            <div class="inline-actions">
+              <button class="secondary-button" type="button">Verify connection</button>
+              <span class="status-text">Not connected</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Backups</h2>
+            <button class="help-button" data-help="backups">
+              <span>?</span>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+              <div>
+                <p class="toggle-title">Enable automatic backups</p>
+                <p class="muted">Recommended for SQLite deployments.</p>
+              </div>
+            </div>
+
+            <div class="grid three-col">
+              <div class="field">
+                <label>Interval (hours)</label>
+                <input type="number" value="6" />
+              </div>
+              <div class="field">
+                <label>Retention (days)</label>
+                <input type="number" value="7" />
+              </div>
+              <div class="field">
+                <label>Backup directory</label>
+                <input type="text" value="backups" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Owner account</h2>
+            <button class="help-button" data-help="owner">
+              <span>?</span>
+            </button>
+          </div>
+          <div class="panel-body">
+            <div class="grid two-col">
+              <div class="field">
+                <label>Email</label>
+                <input type="email" placeholder="owner@example.com" />
+              </div>
+              <div class="field">
+                <label>Password</label>
+                <input type="password" placeholder="Create a strong password" />
+              </div>
+            </div>
+            <div class="toggle-row">
+              <label class="switch">
+                <input type="checkbox" checked />
+                <span class="slider"></span>
+              </label>
+              <div>
+                <p class="toggle-title">Enable demo login</p>
+                <p class="muted">Read‑only access for dashboard previews.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="footer-actions">
+          <button class="ghost-button" type="button">Save draft</button>
+          <button class="primary-button" type="button">Complete setup</button>
+        </section>
+      </main>
+    </div>
+
+    <div class="help-popup" id="helpPopup" hidden>
+      <div class="help-card">
+        <div class="help-header">
+          <span class="help-title">Help</span>
+          <button class="help-close" type="button">×</button>
+        </div>
+        <div class="help-content" id="helpContent"></div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
