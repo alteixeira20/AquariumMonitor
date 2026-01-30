@@ -75,9 +75,8 @@ venv:
 	@if [ ! -d $(VENV) ]; then \
 		echo "$(BOLD)==> Creating virtual environment…$(RESET)"; \
 		if ! $(PYTHON) -m venv $(VENV) >/dev/null 2>&1; then \
-			echo "$(BOLD)==> python3-venv missing or venv failed. Attempting install (sudo required)…$(RESET)"; \
-			sudo apt-get update && sudo apt-get install -y python3-venv python3-pip || { echo "$(BOLD)python3-venv install failed. Please install manually.$(RESET)"; exit 1; }; \
-			$(PYTHON) -m venv $(VENV) || { echo "$(BOLD)venv creation failed. Please check Python installation.$(RESET)"; exit 1; }; \
+			echo "$(BOLD)venv creation failed. Please install python3-venv and rerun.$(RESET)"; \
+			exit 1; \
 		fi; \
 		echo "$(BOLD)==> Virtual environment created at $(VENV).$(RESET)"; \
 	else \
