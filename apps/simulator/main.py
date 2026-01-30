@@ -485,14 +485,6 @@ def provision(client: ApiClient, cfg: AppConfig, state: SimulatorState) -> dict[
             else:
                 device_id = existing_device["id"]
 
-            cached = state.get_device(device_cfg.name)
-            if cached and cached.get("id") == device_id and cached.get("api_key"):
-                api_key = cached["api_key"]
-            else:
-                key_resp = client.create_device_key(device_id)
-                api_key = key_resp["api_key"]
-                state.set_device(device_cfg.name, device_id, api_key)
-
             points = client.get_calibration(device_id)
             if not _is_calibrated(points):
                 client.start_calibration(device_id)
@@ -501,6 +493,14 @@ def provision(client: ApiClient, cfg: AppConfig, state: SimulatorState) -> dict[
                 client.activate_calibration(device_id)
 
             client.attach_device(aquarium_id, device_id)
+
+            cached = state.get_device(device_cfg.name)
+            if cached and cached.get("id") == device_id and cached.get("api_key"):
+                api_key = cached["api_key"]
+            else:
+                key_resp = client.create_device_key(device_id)
+                api_key = key_resp["api_key"]
+                state.set_device(device_cfg.name, device_id, api_key)
 
             device_states[device_cfg.name] = DeviceState(
                 device_id=device_id,
