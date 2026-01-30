@@ -22,6 +22,11 @@ All configuration is driven by environment variables (see `apps/backend/.env.exa
 
 These settings are applied at startup. A future UI setup wizard can surface them as prompts for new installs.
 
+Planned setup flow:
+- Choose database backend (SQLite default, optional MariaDB/Postgres)
+- Collect connection settings for the chosen backend
+- Verify the connection before proceeding
+
 ### MariaDB
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `DB_ROOT_PASSWORD` (Docker only)
