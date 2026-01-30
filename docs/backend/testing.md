@@ -46,6 +46,24 @@ make backend-dev
 - **Domain rules**: sensor range validation and deterministic calculations.
 - **Persistence**: ordering, pagination, latest reading, and FK integrity.
 
+## Coverage map
+Covered:
+- API endpoints (auth, devices, aquariums, readings, stats, health)
+- Domain computations (pH and TDS validation and bounds)
+- Storage behavior (SQLite persistence and ordering)
+- Security constraints (single‑owner mode, rate limiting)
+
+Not covered (by design):
+- Frontend UI behavior
+- Device firmware behavior
+- Load testing or high‑throughput ingestion
+- Network/security hardening beyond basic auth and rate limiting
+
+## Production data note
+Tests and seeds only exist for development and CI. In production, the database is populated by:
+- Owner setup and user actions (aquariums, devices, calibration)
+- Device or simulator readings sent to the API
+
 ## Failure output
 - Each test prints a short pass/fail line.
 - Full tracebacks are written to `logs/test.log`.
