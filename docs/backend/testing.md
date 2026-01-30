@@ -27,6 +27,9 @@ Notes:
 - Uses `BASE_URL` (default: `http://localhost:8000`)
 - If the instance is unconfigured, the script runs setup first
 
+Prefer the simulator for repeatable demos:
+- `docs/simulator.md`
+
 ## Starting the API locally
 From `apps/backend`:
 ```
