@@ -21,6 +21,11 @@ help:
 	@echo "  ${GREEN}make backend-format${RESET}      Format backend (black)"
 	@echo "  ${GREEN}make backend-lint${RESET}        Lint backend (ruff)"
 	@echo ""
+	@echo "${BOLD}Simulator${RESET}"
+	@echo "  ${BLUE}make simulator-setup${RESET}     Prepare simulator env + config"
+	@echo "  ${BLUE}make simulator-up${RESET}        Run backend + simulator (SQLite)"
+	@echo "  ${BLUE}make simulator-down${RESET}      Stop simulator stack"
+	@echo ""
 	@echo "${BOLD}Frontend${RESET}"
 	@echo "  ${BLUE}make frontend-dev${RESET}        Run frontend dev server"
 	@echo "  ${BLUE}make frontend-build${RESET}      Build frontend"
@@ -29,6 +34,7 @@ help:
 	@echo "${BOLD}Infra${RESET}"
 	@echo "  ${YELLOW}make docker-up${RESET}           Start containers"
 	@echo "  ${YELLOW}make docker-down${RESET}         Stop containers"
+	@echo "  ${YELLOW}make docker-up-sim${RESET}       Start containers + simulator"
 
 backend-dev:
 	@$(MAKE) -C $(BACKEND_DIR) dev
@@ -59,3 +65,17 @@ docker-up:
 
 docker-down:
 	@docker compose -f infra/docker-compose.sqlite.yml down
+
+docker-up-sim:
+	@docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d --build
+
+simulator-setup:
+	@cp -n apps/simulator/.env.example apps/simulator/.env || true
+	@cp -n apps/simulator/config.example.toml apps/simulator/config.toml || true
+	@echo "${BOLD}==> Simulator config ready at apps/simulator/config.toml${RESET}"
+
+simulator-up: simulator-setup
+	@$(MAKE) docker-up-sim
+
+simulator-down:
+	@docker compose -f infra/docker-compose.sqlite.yml --profile simulator down

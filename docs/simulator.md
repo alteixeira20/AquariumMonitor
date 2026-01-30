@@ -44,4 +44,9 @@ SIM_CONFIG=./config.toml python main.py
 docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d
 ```
 
+Convenience:
+```
+make simulator-up
+```
+
 The simulator stores state in `SIM_STATE_PATH` so it can reuse device IDs and API keys across restarts.

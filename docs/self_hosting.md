@@ -39,6 +39,11 @@ cp apps/simulator/config.example.toml apps/simulator/config.toml
 docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d
 ```
 
+Convenience:
+```
+make simulator-up
+```
+
 ## First‑run setup
 - Create the owner account with `POST /v1/setup`.
 - Demo login is controlled by `DEMO_ENABLED` and exposed during setup if enabled.
