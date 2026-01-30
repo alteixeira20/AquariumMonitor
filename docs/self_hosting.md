@@ -31,6 +31,14 @@ SQLite data lives in `apps/backend/data/app.db`.
 docker compose -f infra/docker-compose.yml up -d --build
 ```
 
+## Simulator (optional)
+The simulator runs in its own container and uses the owner account to provision demo data.
+```
+cp apps/simulator/.env.example apps/simulator/.env
+cp apps/simulator/config.example.toml apps/simulator/config.toml
+docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d
+```
+
 ## First‑run setup
 - Create the owner account with `POST /v1/setup`.
 - Demo login is controlled by `DEMO_ENABLED` and exposed during setup if enabled.

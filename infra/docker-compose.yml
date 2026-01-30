@@ -46,6 +46,25 @@ services:
     networks:
       - aquariummonitor_net
 
+  aquariummonitor_simulator:
+    profiles: ["simulator"]
+    build:
+      context: ../apps/simulator
+      dockerfile: Dockerfile
+    container_name: aquariummonitor_simulator
+    restart: unless-stopped
+    env_file:
+      - ../apps/simulator/.env
+    environment:
+      SIM_BACKEND_URL: http://aquariummonitor_backend:8000
+    volumes:
+      - ../apps/simulator/data:/data
+    depends_on:
+      aquariummonitor_backend:
+        condition: service_healthy
+    networks:
+      - aquariummonitor_net
+
 volumes:
   mariadb_data:
 

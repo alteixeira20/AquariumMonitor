@@ -7,6 +7,7 @@ Clear, practical docs for an open-source, self-hosted aquarium monitoring system
 - [Domain concepts](concepts.md)
 - [Technologies](technologies.md)
 - [Self-hosting guide](self_hosting.md)
+- [Simulator](simulator.md)
 
 ## Backend
 - [Overview](backend/README.md)

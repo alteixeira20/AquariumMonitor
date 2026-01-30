@@ -32,6 +32,7 @@ AquariumMonitor targets DIY aquarists who want a reliable, self-hosted monitorin
 - [Architecture](docs/architecture.md)
 - [Backend overview](docs/backend/README.md)
 - [Self-hosting guide](docs/self_hosting.md)
+- [Simulator](docs/simulator.md)
 - [Frontend overview](docs/frontend/README.md)
 
 ## Scope
