@@ -18,10 +18,14 @@ AquariumMonitor is designed for single‑node hosting (home server or Raspberry 
    - `DEMO_ENABLED=true` to allow demo login
    - `SINGLE_OWNER_MODE=true` to restrict access
    - `RATE_LIMIT_ENABLED=true` to rate‑limit API calls
+4) SQLite backup policy (optional):
+   - `BACKUP_ENABLED=true`
+   - `BACKUP_INTERVAL_HOURS=6`
+   - `BACKUP_RETENTION_DAYS=7`
 
 ## SQLite (recommended)
 ```
-docker compose -f infra/docker-compose.sqlite.yml up -d --build
+make prod
 ```
 
 SQLite data lives in `apps/backend/data/app.db`.
@@ -41,7 +45,7 @@ docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d
 
 Convenience:
 ```
-make simulator-up
+make prod-sim
 ```
 
 ## First‑run setup

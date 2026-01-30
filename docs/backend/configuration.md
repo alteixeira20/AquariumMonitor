@@ -20,6 +20,8 @@ All configuration is driven by environment variables (see `apps/backend/.env.exa
 - `BACKUP_RETENTION_DAYS` (default: `7`)
 - `BACKUP_INTERVAL_HOURS` (default: `6`)
 
+These settings are applied at startup. A future UI setup wizard can surface them as prompts for new installs.
+
 ### MariaDB
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `DB_ROOT_PASSWORD` (Docker only)

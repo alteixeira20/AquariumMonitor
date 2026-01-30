@@ -35,6 +35,17 @@ AquariumMonitor targets DIY aquarists who want a reliable, self-hosted monitorin
 - [Simulator](docs/simulator.md)
 - [Frontend overview](docs/frontend/README.md)
 
+## Quickstart (self-hosted)
+```
+cp apps/backend/.env.example apps/backend/.env
+make prod
+```
+
+Add the simulator:
+```
+make prod-sim
+```
+
 ## Scope
 - Backend API for aquariums, devices, calibration, and readings
 - Device simulator for live demo data

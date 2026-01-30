@@ -14,6 +14,14 @@ FRONTEND_DIR := apps/frontend
 help:
 	@echo "${BOLD}AquariumMonitor${RESET} — root tasks"
 	@echo ""
+	@echo "${BOLD}Most used${RESET}"
+	@echo "  ${GREEN}make dev${RESET}                Start backend in dev mode"
+	@echo "  ${YELLOW}make prod${RESET}               Start production stack (SQLite)"
+	@echo "  ${YELLOW}make prod-sim${RESET}           Start production stack + simulator"
+	@echo "  ${GREEN}make test${RESET}               Run backend tests (memory)"
+	@echo "  ${GREEN}make test-sqlite${RESET}        Run backend tests (SQLite)"
+	@echo "  ${YELLOW}make stop${RESET}               Stop all containers"
+	@echo ""
 	@echo "${BOLD}Backend${RESET}"
 	@echo "  ${GREEN}make backend-dev${RESET}         Run backend dev server"
 	@echo "  ${GREEN}make backend-test${RESET}        Run backend tests"
@@ -35,6 +43,30 @@ help:
 	@echo "  ${YELLOW}make docker-up${RESET}           Start containers"
 	@echo "  ${YELLOW}make docker-down${RESET}         Stop containers"
 	@echo "  ${YELLOW}make docker-up-sim${RESET}       Start containers + simulator"
+
+dev:
+	@echo "${BOLD}==> Starting backend in dev mode${RESET}"
+	@$(MAKE) -C $(BACKEND_DIR) dev
+
+prod:
+	@echo "${BOLD}==> Starting production stack (SQLite)${RESET}"
+	@$(MAKE) docker-up
+
+prod-sim: simulator-setup
+	@echo "${BOLD}==> Starting production stack with simulator${RESET}"
+	@$(MAKE) docker-up-sim
+
+test:
+	@echo "${BOLD}==> Running backend tests (memory)${RESET}"
+	@$(MAKE) backend-test
+
+test-sqlite:
+	@echo "${BOLD}==> Running backend tests (SQLite)${RESET}"
+	@$(MAKE) backend-test-sqlite
+
+stop:
+	@echo "${BOLD}==> Stopping containers${RESET}"
+	@docker compose -f infra/docker-compose.sqlite.yml --profile simulator down
 
 backend-dev:
 	@$(MAKE) -C $(BACKEND_DIR) dev
@@ -61,12 +93,15 @@ frontend-test:
 	@$(MAKE) -C $(FRONTEND_DIR) test
 
 docker-up:
+	@echo "${BOLD}==> Starting containers (SQLite)${RESET}"
 	@docker compose -f infra/docker-compose.sqlite.yml up -d --build
 
 docker-down:
+	@echo "${BOLD}==> Stopping containers (SQLite)${RESET}"
 	@docker compose -f infra/docker-compose.sqlite.yml down
 
 docker-up-sim:
+	@echo "${BOLD}==> Starting containers + simulator (SQLite)${RESET}"
 	@docker compose -f infra/docker-compose.sqlite.yml --profile simulator up -d --build
 
 simulator-setup:
