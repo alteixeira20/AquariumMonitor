@@ -12,7 +12,7 @@ const config: Config = {
           800: "#132c3b",
           700: "#1b3a4b",
           500: "#4fd1c5",
-          400: "#64e2d6"
+          400: "#64e2d6",
         },
       },
       boxShadow: {

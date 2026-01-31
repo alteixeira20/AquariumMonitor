@@ -8,7 +8,6 @@ Clear, practical docs for an open-source, self-hosted aquarium monitoring system
 - [Technologies](technologies.md)
 - [Self-hosting guide](self_hosting.md)
 - [Simulator](simulator.md)
-- [Main README (alias)](README_main.md)
 
 ## Backend
 - [Overview](backend/README.md)
@@ -21,4 +20,3 @@ Clear, practical docs for an open-source, self-hosted aquarium monitoring system
 
 ## Frontend
 - [Overview](frontend/README.md)
-- [Overview (alias)](frontend/README_frontend.md)

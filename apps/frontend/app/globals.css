@@ -1,13 +1,38 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
+  --theme-ocean: #4fd1c5;
+  --theme-ocean-deep: #0b1b24;
+  --theme-ocean-mid: #132c3b;
   color-scheme: dark;
 }
 
+@theme {
+  --color-ocean-950: #071218;
+  --color-ocean-900: #0b1b24;
+  --color-ocean-850: #0f2431;
+  --color-ocean-800: #132c3b;
+  --color-ocean-700: #1b3a4b;
+  --color-ocean-500: #4fd1c5;
+  --color-ocean-400: #64e2d6;
+  --shadow-ocean: 0 24px 60px rgba(7, 18, 25, 0.45);
+  --shadow-glow: 0 0 24px rgba(79, 209, 197, 0.35);
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+@keyframes floatIn {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 body {
-  @apply min-h-screen bg-ocean-900 text-white font-body;
+  @apply min-h-screen bg-ocean-900 text-white;
+  font-family: var(--font-body);
   background: radial-gradient(circle at top, #122b3a 0%, #0b1b24 55%, #071218 100%);
 }
 
@@ -35,4 +60,44 @@ input:focus {
   bottom: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(79, 209, 197, 0.3), transparent);
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--theme-ocean)];
+  }
+
+  .text-primary {
+    @apply bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] bg-clip-text text-transparent;
+  }
+
+  .bg-primary {
+    @apply bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] text-white;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .shadow-ocean {
+    box-shadow: var(--shadow-ocean);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .animate-pulseGlow {
+    animation: pulseGlow 2.4s ease-in-out infinite;
+  }
+
+  .animate-floatIn {
+    animation: floatIn 0.4s ease-out;
+  }
 }

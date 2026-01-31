@@ -27,19 +27,19 @@ deps: node_modules
 
 dev: deps
 	@echo "${BOLD}==> Starting Next.js dev server${RESET}"
-	@npm run dev
+	@NODE_PATH=$(CURDIR)/node_modules npm run dev
 
 build: deps
 	@echo "${BOLD}==> Building frontend${RESET}"
-	@npm run build
+	@NODE_PATH=$(CURDIR)/node_modules npm run build
 
 start:
 	@echo "${BOLD}==> Starting frontend${RESET}"
-	@npm run start
+	@NODE_PATH=$(CURDIR)/node_modules npm run start
 
 lint: deps
 	@echo "${BOLD}==> Linting frontend${RESET}"
-	@npm run lint
+	@NODE_PATH=$(CURDIR)/node_modules npm run lint
 
 test: lint
 

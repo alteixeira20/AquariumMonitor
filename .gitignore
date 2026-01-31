@@ -46,3 +46,7 @@ logs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Local context files
+*_details.txt
+"docs (Copy)/"

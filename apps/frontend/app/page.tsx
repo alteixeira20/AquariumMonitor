@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import HelpModal from "../components/HelpModal";
+import { apiBaseUrl } from "../lib/config";
 
 type HelpKey = "storage" | "backups" | "owner";
 
@@ -29,6 +30,7 @@ export default function HomePage() {
     () => (activeHelp ? helpContent[activeHelp] : null),
     [activeHelp]
   );
+  const backendLabel = apiBaseUrl.replace(/^https?:\/\//, "");
 
   return (
     <div className="flex min-h-screen flex-col gap-8 px-6 py-8 md:px-12 md:py-10">
@@ -75,7 +77,7 @@ export default function HomePage() {
                 <div className="text-xs uppercase tracking-[0.2em] text-white/50">
                   Backend
                 </div>
-                <div className="text-sm">localhost:8000</div>
+                <div className="text-sm">{backendLabel}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-white/50">

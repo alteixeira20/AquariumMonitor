@@ -54,6 +54,11 @@ Frontend UI:
 make frontend-dev
 ```
 
+Backend + frontend together:
+```
+make dev-full
+```
+
 ## Scope
 - Backend API for aquariums, devices, calibration, and readings
 - Device simulator for live demo data

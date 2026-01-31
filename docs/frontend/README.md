@@ -13,9 +13,17 @@ Planned scope:
 - Read‑only demo access
 
 ## Run locally
+Requirements:
+- Node.js 20.9+ (matching Next.js 16)
+
 From the repo root:
 ```
 make frontend-dev
+```
+
+Run backend + frontend together:
+```
+make dev-full
 ```
 
 From inside the frontend directory:
@@ -23,6 +31,12 @@ From inside the frontend directory:
 cd apps/frontend
 npm install
 npm run dev
+```
+
+Optional environment overrides:
+```
+# apps/frontend/.env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 ```
 
 The frontend will consume the backend endpoints documented in [API reference](../backend/api.md).

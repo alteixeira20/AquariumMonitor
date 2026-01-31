@@ -16,6 +16,7 @@ help:
 	@echo ""
 	@echo "${BOLD}Most used${RESET}"
 	@echo "  ${GREEN}make dev${RESET}                Start backend in dev mode"
+	@echo "  ${GREEN}make dev-full${RESET}           Start backend + frontend dev"
 	@echo "  ${YELLOW}make prod${RESET}               Start production stack (SQLite)"
 	@echo "  ${YELLOW}make prod-sim${RESET}           Start production stack + simulator"
 	@echo "  ${GREEN}make test${RESET}               Run backend tests (memory)"
@@ -47,6 +48,10 @@ help:
 dev:
 	@echo "${BOLD}==> Starting backend in dev mode${RESET}"
 	@$(MAKE) -C $(BACKEND_DIR) dev
+
+dev-full:
+	@echo "${BOLD}==> Starting backend + frontend in dev mode${RESET}"
+	@./scripts/dev.sh
 
 prod:
 	@echo "${BOLD}==> Starting production stack (SQLite)${RESET}"
