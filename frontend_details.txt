@@ -1,0 +1,115 @@
+# AquariumMonitor — Frontend Details (Next.js)
+
+## Framework & Tooling
+- Next.js App Router (apps/frontend)
+- TypeScript
+- Tailwind CSS v4 (CSS-first)
+- PostCSS with @tailwindcss/postcss
+- ESLint (next lint)
+
+Versions (from `apps/frontend/package.json`)
+- next: ^16.1.6
+- react/react-dom: ^19.2.0
+- tailwindcss: ^4.1.0
+- typescript: ^5.9.0
+- eslint + eslint-config-next: ^9.x / ^16.1.6
+
+## App Architecture
+- Routing: App Router under `apps/frontend/app`
+- State management: local React state only (no global store yet)
+- Data fetching: planned via `apps/frontend/lib/api.ts` (fetchJson wrapper)
+- Caching: none yet (future: React cache or SWR)
+
+## Key Screens & Components
+- Setup screen (apps/frontend/app/page.tsx)
+  - Storage engine selection UI
+  - Backup policy UI
+  - Owner account creation UI
+  - Demo access toggle UI
+  - Help modal triggers
+- Help modal (apps/frontend/components/HelpModal.tsx)
+  - Full-screen overlay, closes on backdrop or button
+
+## Styling & Theme
+- `apps/frontend/app/globals.css`
+  - `@import "tailwindcss";`
+  - `@theme { ... }` defines ocean palette + shadows
+  - `@layer utilities` defines shadow/animation helpers
+  - Custom keyframes: `pulseGlow`, `floatIn`
+- `apps/frontend/tailwind.config.ts`
+  - Mirrors ocean palette and animations for editor tooling
+
+## Data Fetching / API Integration (current state)
+- No live API calls yet; UI is static.
+- `apps/frontend/lib/config.ts` reads `NEXT_PUBLIC_API_BASE_URL`.
+- `apps/frontend/lib/api.ts` provides `fetchJson<T>(path, options)`.
+
+## Planned API Calls (TBD wiring)
+- `GET /v1/health` -> status pill on setup
+- `GET /v1/setup/status` -> show configured vs. first-run
+- `POST /v1/setup` -> create owner on first-run
+- `POST /v1/login` -> owner/demo login
+
+Example (planned):
+```ts
+const status = await fetchJson<{ status: string }>("/v1/health");
+```
+
+## Auth UX / Session
+- Not implemented yet.
+- TBD: store JWT in http-only cookie (recommended) or localStorage.
+
+## Charting & Aggregation
+- Not implemented yet.
+- TBD: choose chart library and map time ranges to backend series endpoints.
+
+## Performance & Accessibility
+- Performance: static App Router page; no heavy data fetches yet.
+- A11y: modal uses role="dialog" + aria-modal. Button labels should be added when forms are wired.
+
+## Environment Variables
+File: `apps/frontend/.env.example`
+```
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+## Build/Run Commands
+Root Makefile:
+- `make frontend-dev`
+- `make frontend-build`
+- `make frontend-test`
+- `make dev-full` (backend + frontend)
+
+Frontend Makefile (`apps/frontend/Makefile`):
+- `make dev`
+- `make build`
+- `make start`
+- `make lint`
+
+## File Map
+- apps/frontend/app/layout.tsx
+- apps/frontend/app/page.tsx
+- apps/frontend/app/globals.css
+- apps/frontend/components/HelpModal.tsx
+- apps/frontend/lib/config.ts
+- apps/frontend/lib/api.ts
+- apps/frontend/tailwind.config.ts
+- apps/frontend/postcss.config.js
+- apps/frontend/Makefile
+
+## Production Readiness Checklist (pass/fail)
+- [ ] Setup screen wired to real backend calls
+- [ ] Auth token storage strategy decided and implemented
+- [ ] CORS config confirmed for frontend origin
+- [ ] Error and loading states for all API calls
+- [ ] Charting library chosen + time-range mapping implemented
+- [ ] Accessibility audit (focus traps, labels, keyboard nav)
+
+## Assumptions
+- Frontend will eventually be deployed behind the same domain or reverse proxy as the API.
+- JWT will be used for user auth (per backend design).
+
+## Open Questions
+- Which charting library should be used for time-series data?
+- Will auth tokens live in http-only cookies or localStorage?
+- Should the frontend host the setup wizard or should a CLI be added?

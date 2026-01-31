@@ -1,0 +1,64 @@
+# AquariumMonitor — Product / Domain Details
+
+## Target Users
+- DIY aquarists and self-hosters.
+- Single-owner setups with optional demo read-only access.
+
+## Core Workflows (step-by-step)
+### First-run setup
+1) UI checks `/v1/setup/status` to see if configured.
+2) Owner creates account via `POST /v1/setup`.
+3) Owner logs in via `POST /v1/login`.
+4) Optionally enable demo login (read-only).
+
+### Device onboarding
+1) Create aquarium (`POST /v1/aquariums`).
+2) Register device (`POST /v1/devices`).
+3) Calibrate pH (`/devices/{id}/calibration/*`).
+4) Attach device to aquarium (`POST /aquariums/{id}/devices/{device_id}`).
+5) Create device API key (`POST /devices/{id}/api-keys`).
+
+### Telemetry ingestion
+1) Device sends reading to `POST /readings/{device_id}` with device API key.
+2) Backend validates ranges and calibration.
+3) Reading is stored and available to stats/series endpoints.
+
+## Supported Metrics / Sensors
+Derived from `apps/backend/app/domain/reading.py`:
+- Temperature (°C)
+  - Expected range: -5 to 60
+- pH (calculated)
+  - Expected range: 0 to 14
+  - Uses 3-point calibration (4.01, 6.86, 9.18)
+- TDS (ppm, calculated)
+  - Raw voltage range: 0 to 2.3 V
+
+## Sampling Frequency
+- Not enforced by backend.
+- Simulator default: 5 seconds (apps/simulator/config.example.toml).
+
+## Alerting
+- Not implemented.
+- TBD: rule model, thresholds, hysteresis/cooldown.
+- Recommended default: min/max threshold alerts per aquarium with 10 min cooldown.
+
+## Data Retention & Privacy
+- No retention policy implemented (data persists until DB reset).
+- Backups exist for SQLite (retention days configurable).
+- Privacy: data is local to self-hosting instance; no external telemetry.
+
+## Production Readiness Checklist (pass/fail)
+- [ ] Setup flow documented for end users
+- [ ] Calibration steps clearly documented
+- [ ] Demo mode access controls validated
+- [ ] Alerting requirements defined
+- [ ] Data retention strategy defined
+
+## Assumptions
+- Only one owner user is expected.
+- Demo user is read-only and uses JWT claims.
+
+## Open Questions
+- Should multi-user support be added later?
+- What alert channels are desired (email, webhook, push)?
+- What long-term retention policy is acceptable for self-hosting?

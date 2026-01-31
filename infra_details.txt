@@ -1,0 +1,78 @@
+# AquariumMonitor — Infra / Deployment Details
+
+## Environments
+- Local dev: `make dev-full` (backend + frontend)
+- Local backend only: `make backend-dev`
+- Production-like (SQLite): `make prod`
+- Production-like (SQLite + simulator): `make prod-sim`
+- MariaDB stack: `docker compose -f infra/docker-compose.yml up -d --build`
+
+## Required Services
+- SQLite (default): file-based DB at `apps/backend/data/app.db`
+- MariaDB (optional): `mariadb:10.11` container in `infra/docker-compose.yml`
+- Simulator (optional): `apps/simulator` container profile
+
+## Docker Compose
+- SQLite stack: `infra/docker-compose.sqlite.yml`
+  - `aquariummonitor_backend` on port 8000
+  - `aquariummonitor_simulator` (profile: simulator)
+- MariaDB stack: `infra/docker-compose.yml`
+  - `mariadb` service
+  - `aquariummonitor_backend` service
+  - `aquariummonitor_simulator` (profile: simulator)
+
+## Environment Variables
+Backend (apps/backend/.env.example):
+- Core: ENVIRONMENT, DEBUG, PROJECT_NAME, VERSION
+- Auth: JWT_SECRET, JWT_EXPIRES_SECONDS, DEVICE_API_KEY_PEPPER
+- CORS: CORS_ORIGINS, CORS_ALLOW_METHODS, CORS_ALLOW_HEADERS
+- Storage: STORAGE_BACKEND, DATABASE_URL
+- MariaDB: DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+- Backups: BACKUP_ENABLED, BACKUP_RETENTION_DAYS, BACKUP_INTERVAL_HOURS
+- Rate limiting: RATE_LIMIT_ENABLED, RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW_SECONDS
+
+Simulator (apps/simulator/.env.example):
+- SIM_CONFIG, SIM_BACKEND_URL
+- SIM_OWNER_EMAIL, SIM_OWNER_PASSWORD
+- SIM_WAIT_FOR_SETUP, SIM_AUTO_SETUP
+- SIM_STATE_PATH
+
+Frontend (apps/frontend/.env.example):
+- NEXT_PUBLIC_API_BASE_URL
+
+## CI/CD (TBD)
+- No CI pipeline defined.
+- Recommended steps:
+  1) Lint (ruff/black + eslint)
+  2) Backend tests (make test, make test-sqlite)
+  3) Frontend build
+  4) Build container images
+
+## Migrations
+- SQLite: runtime schema creation, no migrations
+- MariaDB: Alembic migrations in `apps/backend/alembic/`
+  - Run via `make -C apps/backend db-upgrade`
+
+## Backups / Restore
+- SQLite backup loop in `apps/backend/app/core/backup.py`
+- Manual scripts in `scripts/backup_sqlite.sh`, `scripts/restore_sqlite.sh`
+- MariaDB scripts: `scripts/backup_mariadb.sh`, `scripts/restore_mariadb.sh`
+
+## Runbook (common incidents)
+- Backend returns 503 on readiness: check DB connection + tables
+- Port 8000 already in use: stop containers (`make stop`) or kill process
+- JWT errors: confirm JWT_SECRET consistency
+
+## Production Readiness Checklist (pass/fail)
+- [ ] CI pipeline defined
+- [ ] Deployment config checked (ports, volumes, secrets)
+- [ ] Backups tested with restore
+- [ ] Observability endpoints monitored
+- [ ] DB migrations applied for MariaDB
+
+## Assumptions
+- Docker is the primary deployment mechanism.
+
+## Open Questions
+- Should Kubernetes manifests be added?
+- Should secrets management (Vault/SM) be supported?

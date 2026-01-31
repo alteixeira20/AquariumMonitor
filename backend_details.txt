@@ -1,0 +1,168 @@
+# AquariumMonitor — Backend Details (FastAPI)
+
+## Runtime / Stack
+- Language: Python 3.12
+- Framework: FastAPI
+- Validation: Pydantic v2
+- Server: Uvicorn
+- ORM: SQLAlchemy async
+- DB drivers: aiosqlite (SQLite), asyncmy (MariaDB), PyMySQL (migrations)
+- Auth: JWT (PyJWT) + bcrypt
+- Logging: python-json-logger
+
+Versions are pinned in `apps/backend/requirements.txt`.
+
+## Folder Structure & Entrypoints
+- App entrypoint: `apps/backend/app/main.py`
+- Routers: `apps/backend/app/api/v1/*.py` mounted at `/v1`
+- Schemas: `apps/backend/app/schemas/*.py`
+- Services: `apps/backend/app/services/*.py`
+- Repositories: `apps/backend/app/repositories/*.py`
+- Domain rules: `apps/backend/app/domain/*.py`
+- ORM models: `apps/backend/app/infrastructure/db_models.py`
+
+## API Surface
+Base URL: `/v1`
+Docs: `/docs` and `/redoc` (FastAPI)
+
+Auth
+- JWT (Bearer token) required for user endpoints.
+- Device readings use Device API Key (Bearer token).
+
+### Auth & Setup
+- `GET /setup/status`
+  - Response: `{ "configured": bool, "demo_enabled": bool }`
+  - File: `apps/backend/app/api/v1/setup.py`
+- `POST /setup`
+  - Request: `{ "email": "owner@example.com", "password": "change-me" }`
+  - Response: `{ "owner_user_id": "uuid", "access_token": "jwt", "token_type": "bearer" }`
+  - Errors: 409 if already configured.
+- `POST /login`
+  - Request: `{ "email": "...", "password": "..." }`
+  - Response: `{ "access_token": "jwt", "token_type": "bearer" }`
+  - Errors: 409 if setup not done, 401 invalid credentials.
+
+### Aquariums
+File: `apps/backend/app/api/v1/aquariums.py`
+- `POST /aquariums` -> create aquarium
+- `GET /aquariums` -> list aquariums
+- `GET /aquariums/{aquarium_id}` -> get aquarium
+- `POST /aquariums/{aquarium_id}/devices/{device_id}` -> attach
+- `DELETE /aquariums/{aquarium_id}/devices/{device_id}` -> detach
+- `GET /aquariums/{aquarium_id}/devices` -> list attached
+- `GET /aquariums/{aquarium_id}/stats` -> median stats
+- `GET /aquariums/{aquarium_id}/devices/{device_id}/stats` -> device stats within aquarium
+
+### Devices
+File: `apps/backend/app/api/v1/devices.py`
+- `POST /devices` -> register device (owner only)
+- `GET /devices` -> list devices in owned aquariums
+- `GET /devices/owned` -> list all owned devices
+- `GET /devices/{device_id}` -> get device
+- `POST /devices/{device_id}/claim` -> claim unowned device
+- `POST /devices/{device_id}/api-keys` -> create API key
+- `POST /devices/{device_id}/api-keys/revoke` -> revoke API key
+- `GET /devices/{device_id}/status` -> online/offline based on latest reading
+- `GET /devices/{device_id}/stats` -> median stats
+
+### Calibration
+File: `apps/backend/app/api/v1/devices.py`
+- `POST /devices/{device_id}/calibration/start`
+- `POST /devices/{device_id}/calibration/points`
+  - Request: `{ "ph_point": 6.86, "voltage": 2.48 }`
+- `POST /devices/{device_id}/calibration/activate`
+- `GET /devices/{device_id}/calibration`
+
+### Readings
+File: `apps/backend/app/api/v1/readings.py`
+- `POST /readings/{device_id}` -> create reading (device API key)
+  - Request: `{ "temperature_c": 25.2, "raw_ph_voltage": 2.48, "raw_tds_voltage": 1.0 }`
+- `GET /readings/{device_id}` -> list readings (JWT)
+- `GET /readings/{device_id}/paginated` -> paginated list
+- `GET /readings/{device_id}/latest` -> most recent
+- `GET /readings/{device_id}/series` -> bucketed series
+
+### Health & Metrics
+File: `apps/backend/app/api/v1/health.py`
+- `GET /health` (200)
+- `GET /readiness` (200 or 503)
+- `GET /metrics`
+- `GET /metrics/prometheus`
+
+### Events (placeholder)
+File: `apps/backend/app/api/v1/events.py`
+- `GET /events` -> returns `{ "message": "Events endpoint is working" }`
+
+## Pagination / Filtering / Sorting
+- `from` / `to` query params (ISO datetime) on stats + readings.
+- Pagination: `page`, `page_size` (1..200).
+- Sorting: newest first in list endpoints (repository behavior).
+
+## Data Model
+ORM: `apps/backend/app/infrastructure/db_models.py`
+- users: id, email, password_hash, is_active, created_at
+- aquariums: id, user_id, name, water_type, liters, temp/ph/tds thresholds, created_at
+- devices: id, name, location, owner_user_id, claimed_at, created_at, updated_at, is_active
+- readings: id, device_id, temperature_c, raw_ph_voltage, raw_tds_voltage, ph_value, tds_ppm, ph_calibrated, received_at
+- aquarium_devices: aquarium_id, device_id, attached_at, detached_at
+- device_api_keys: device_id, key_hash, created_at, revoked_at
+- device_ph_calibrations: device_id, ph_point, voltage, created_at, is_active
+
+Indexes
+- `users.email` unique + index
+- Other indexes implicit via PKs; no extra indexes beyond defaults.
+
+Migrations
+- SQLite: runtime schema creation in `apps/backend/app/repositories/sqlite_repository.py`
+- MariaDB: Alembic migrations in `apps/backend/alembic/`
+
+## Time-series Storage
+- Raw readings stored per device.
+- Aggregation happens at query time (median buckets in service layer).
+- No downsampling or rollups yet (TBD).
+
+## Ingestion Pipeline
+- Transport: HTTP REST
+- Auth: Device API key in `Authorization: Bearer <key>`
+- Validation: domain bounds in `apps/backend/app/domain/reading.py`
+- Attach + calibration required before accepting readings.
+- Idempotency: not implemented (duplicate readings are allowed).
+
+## Jobs / Schedulers
+- SQLite backup loop if enabled.
+  - Code: `apps/backend/app/core/backup.py`
+  - Triggered in `apps/backend/app/main.py` during startup.
+
+## Observability
+- Logs: JSON optional (config), request logging middleware
+- Metrics: `/v1/metrics` and `/v1/metrics/prometheus`
+- Health: `/v1/health`, `/v1/readiness`
+
+## Security
+- JWT for user endpoints; device API key for readings
+- CORS controlled via env in `apps/backend/app/core/config.py`
+- Rate limiting: in-memory, per IP, optional
+- Security headers middleware adds X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+
+## Testing
+- Unit + API tests + repository tests (pytest)
+- Commands: `make test`, `make test-sqlite`
+- Test log: `apps/backend/logs/test.log`
+- Gaps: no load testing, no hardware firmware tests
+
+## Production Readiness Checklist (pass/fail)
+- [ ] All secrets set (JWT_SECRET, DEVICE_API_KEY_PEPPER)
+- [ ] CORS configured for frontend origin
+- [ ] Backups enabled and tested (SQLite or MariaDB)
+- [ ] Rate limiting enabled for public deployments
+- [ ] Monitoring hooked to /metrics/prometheus
+- [ ] Error handling validated with real device traffic
+
+## Assumptions
+- Single-owner mode is the primary deployment mode.
+- Devices use HTTP with API keys, not MQTT.
+
+## Open Questions
+- Should readings be downsampled to reduce storage size over time?
+- Should a refresh token flow be added for JWT?
+- How should alerts/notifications be implemented (email/Telegram/webhooks)?
