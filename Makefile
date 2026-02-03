@@ -21,6 +21,7 @@ help:
 	@echo "  ${YELLOW}make prod-sim${RESET}           Start production stack + simulator"
 	@echo "  ${GREEN}make test${RESET}               Run backend tests (memory)"
 	@echo "  ${GREEN}make test-sqlite${RESET}        Run backend tests (SQLite)"
+	@echo "  ${GREEN}make dev-reset${RESET}          Reset dev data + caches for a clean run"
 	@echo "  ${YELLOW}make stop${RESET}               Stop all containers"
 	@echo ""
 	@echo "${BOLD}Backend${RESET}"
@@ -68,6 +69,19 @@ test:
 test-sqlite:
 	@echo "${BOLD}==> Running backend tests (SQLite)${RESET}"
 	@$(MAKE) backend-test-sqlite
+
+dev-reset:
+	@echo "${BOLD}==> Resetting local dev data + caches${RESET}"
+	@rm -f apps/backend/data/app.db apps/backend/data/app.db-wal apps/backend/data/app.db-shm
+	@rm -rf apps/backend/logs
+	@rm -rf apps/frontend/.next apps/frontend/.turbo apps/frontend/node_modules/.cache
+	@printf "${YELLOW}Remove backups in apps/backend/backups? [y/N] ${RESET}"; \
+	read -r reply; \
+	case "$$reply" in \
+		[yY]|[yY][eE][sS]) rm -rf apps/backend/backups ;; \
+		*) echo "${BOLD}==> Keeping backups.${RESET}" ;; \
+	esac
+	@echo "${BOLD}==> Dev data cleared. Run make dev-full to start fresh.${RESET}"
 
 stop:
 	@echo "${BOLD}==> Stopping containers${RESET}"
