@@ -1,7 +1,5 @@
 "use client";
 
-import { ReactNode } from "react";
-
 interface HelpModalProps {
   title: string;
   content: string;

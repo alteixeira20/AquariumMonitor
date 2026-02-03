@@ -33,19 +33,49 @@
 body {
   @apply min-h-screen bg-ocean-900 text-white;
   font-family: var(--font-body);
-  background: radial-gradient(circle at top, #122b3a 0%, #0b1b24 55%, #071218 100%);
+  background: radial-gradient(
+    circle at top,
+    #122b3a 0%,
+    #0b1b24 55%,
+    #071218 100%
+  );
 }
 
-input {
-  @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40;
+/* ------------------------------------------------------------------ */
+/* Form controls                                                       */
+/* ------------------------------------------------------------------ */
+
+input,
+select,
+textarea {
+  @apply w-full rounded-xl border border-white/10 bg-white/5
+         px-3 py-2 text-sm text-white
+         placeholder:text-white/40;
 }
 
-input:focus {
+input:focus,
+select:focus,
+textarea:focus {
   @apply border-ocean-500/60 outline-none ring-2 ring-ocean-500/20;
 }
 
+select {
+  @apply appearance-none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  @apply cursor-not-allowed opacity-60;
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces                                                            */
+/* ------------------------------------------------------------------ */
+
 .glass-panel {
-  @apply rounded-2xl border border-white/10 bg-ocean-800/80 shadow-ocean backdrop-blur;
+  @apply rounded-2xl border border-white/10
+         bg-ocean-800/80 shadow-ocean backdrop-blur;
 }
 
 .section-divider {
@@ -59,22 +89,84 @@ input:focus {
   right: 1.5rem;
   bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(79, 209, 197, 0.3), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(79, 209, 197, 0.3),
+    transparent
+  );
 }
+
+/* ------------------------------------------------------------------ */
+/* Components                                                          */
+/* ------------------------------------------------------------------ */
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] px-6 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--theme-ocean)];
+    @apply inline-flex items-center justify-center
+           rounded-full
+           bg-gradient-to-r
+           from-[#1f8a9b]
+           to-[color:var(--theme-ocean)]
+           px-6 py-2
+           text-sm font-semibold text-white
+           shadow-sm
+           transition
+           hover:brightness-110
+           hover:shadow-glow
+           focus-visible:outline
+           focus-visible:outline-2
+           focus-visible:outline-offset-2
+           focus-visible:outline-[color:var(--theme-ocean)];
   }
 
   .text-primary {
-    @apply bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] bg-clip-text text-transparent;
+    @apply bg-gradient-to-r
+           from-[#1f8a9b]
+           to-[color:var(--theme-ocean)]
+           bg-clip-text
+           text-transparent;
   }
 
   .bg-primary {
-    @apply bg-gradient-to-r from-[#1f8a9b] to-[color:var(--theme-ocean)] text-white;
+    @apply bg-gradient-to-r
+           from-[#1f8a9b]
+           to-[color:var(--theme-ocean)]
+           text-white;
+  }
+
+  /* Use this class directly in JSX when you want a consistent control wrapper */
+  .form-control {
+    @apply w-full rounded-xl border border-white/10 bg-white/5
+           px-3 py-2 text-sm text-white
+           transition
+           focus-within:border-ocean-500/60
+           focus-within:ring-2
+           focus-within:ring-ocean-500/20;
+  }
+
+  /* Can't @apply form-control (custom class), so repeat the utilities */
+  .select-control {
+    @apply relative flex items-center w-full rounded-xl border border-white/10 bg-white/5
+           px-3 py-2 pr-10 text-sm text-white
+           transition
+           focus-within:border-ocean-500/60
+           focus-within:ring-2
+           focus-within:ring-ocean-500/20;
+  }
+
+  .select-control select {
+    @apply w-full bg-transparent text-white outline-none;
+  }
+
+  .select-control svg {
+    @apply absolute right-3 text-white/60;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Utilities                                                           */
+/* ------------------------------------------------------------------ */
 
 @layer utilities {
   .font-display {

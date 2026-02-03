@@ -4,6 +4,8 @@ The frontend is a Next.js (App Router) dashboard built with TypeScript and Tailw
 
 Current scope:
 - Setup flow UI (storage selection, backup policy, owner account)
+- Setup API wiring (`/v1/setup/status`, `/v1/setup`) with validation and progress UI
+- Login screen for `/v1/login` and a placeholder dashboard route
 - Shared help modal component for context and onboarding
 - Ocean‑palette theme aligned with the product identity
 

@@ -1,256 +1,393 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import HelpModal from "../components/HelpModal";
-import { apiBaseUrl } from "../lib/config";
+import SetupHeader from "../components/setup/SetupHeader";
+import SetupIntro from "../components/setup/SetupIntro";
+import SetupSection from "../components/setup/SetupSection";
+import SetupProgressModal, {
+  type SetupProgressStep,
+} from "../components/setup/SetupProgressModal";
+import { clearAuthToken, getAuthToken } from "../lib/auth";
+import { getMe } from "../lib/auth_api";
+import { getClientApiBaseUrl, setClientApiBaseUrl } from "../lib/config";
+import { getSetupStatus, postSetup } from "../lib/setup/api";
+import { helpContent, type HelpKey } from "../lib/setup/content";
+import { setupSections } from "../lib/setup/sections";
+import { useSetupDraft } from "../lib/setup/useSetupDraft";
+import { isPasswordSafe, isValidEmail } from "../lib/setup/validation";
 
-type HelpKey = "storage" | "backups" | "owner";
-
-const helpContent: Record<HelpKey, { title: string; content: string }> = {
-  storage: {
-    title: "Storage engine",
-    content:
-      "SQLite is the default for single-node setups and runs well on small hardware. MariaDB is ideal if you expect multiple clients or higher write volume. Choose now because storage migrations are heavier once data exists.",
-  },
-  backups: {
-    title: "Backups",
-    content:
-      "Backups are recommended for SQLite. Interval controls how often snapshots are taken, and retention keeps only the most recent days. The backup directory stays inside the backend data volume unless you change it.",
-  },
-  owner: {
-    title: "Owner account",
-    content:
-      "Create the owner account that controls device settings. Demo access is optional and read-only, so visitors can view dashboards without editing anything.",
-  },
-};
-
-export default function HomePage() {
+export default function SetupWizardPage() {
+  const router = useRouter();
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [activeHelp, setActiveHelp] = useState<HelpKey | null>(null);
+  const [statusLabel, setStatusLabel] = useState("Waiting");
+  const [statusTone, setStatusTone] = useState<"info" | "ready" | "error">("info");
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [backendReady, setBackendReady] = useState(false);
+  const [isCheckingBackend, setIsCheckingBackend] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progressSteps, setProgressSteps] = useState<SetupProgressStep[]>([]);
+  const [showErrors, setShowErrors] = useState(false);
+  const draftState = useSetupDraft();
+  const [backendUrl, setBackendUrl] = useState(() => getClientApiBaseUrl());
+  const [backendMode, setBackendMode] = useState<"single" | "team">("single");
+  const emailValid = isValidEmail(draftState.draft.admin.email);
+  const passwordSafe = isPasswordSafe(draftState.draft.admin.password);
+
   const helpDetails = useMemo(
     () => (activeHelp ? helpContent[activeHelp] : null),
     [activeHelp]
   );
-  const backendLabel = apiBaseUrl.replace(/^https?:\/\//, "");
+
+  const storageErrors =
+    draftState.draft.storageEngine === "sqlite"
+      ? {
+          databaseUrl: !draftState.draft.sqlite.databaseUrl.trim(),
+          host: false,
+          port: false,
+          name: false,
+          user: false,
+          password: false,
+        }
+      : draftState.draft.storageEngine === "mariadb"
+        ? {
+            databaseUrl: false,
+            host: !draftState.draft.mariadb.host.trim(),
+            port: !draftState.draft.mariadb.port,
+            name: !draftState.draft.mariadb.name.trim(),
+            user: !draftState.draft.mariadb.user.trim(),
+            password: !draftState.draft.mariadb.password.trim(),
+          }
+        : {
+            databaseUrl: false,
+            host: false,
+            port: false,
+            name: false,
+            user: false,
+            password: false,
+          };
+
+  const backupsErrors = draftState.draft.backups.enabled
+    ? {
+        interval: draftState.draft.backups.intervalHours <= 0,
+        retention: draftState.draft.backups.retentionDays <= 0,
+        directory: !draftState.draft.backups.directory.trim(),
+      }
+    : { interval: false, retention: false, directory: false };
+
+  const adminHasError = !emailValid || !passwordSafe;
+  const storageHasError =
+    draftState.draft.storageEngine === "sqlite"
+      ? storageErrors.databaseUrl
+      : draftState.draft.storageEngine === "mariadb"
+        ? storageErrors.host ||
+          storageErrors.port ||
+          storageErrors.name ||
+          storageErrors.user ||
+          storageErrors.password
+        : false;
+  const backupsHasError =
+    draftState.draft.backups.enabled &&
+    (backupsErrors.interval || backupsErrors.retention || backupsErrors.directory);
+
+  const canSubmit =
+    backendReady && !adminHasError && !storageHasError && !backupsHasError;
+  const formReady = canSubmit && !isSubmitting;
+
+  const validationState = {
+    showErrors,
+    admin: {
+      emailValid,
+      passwordSafe,
+      hasError: adminHasError,
+    },
+    storage: {
+      hasError: storageHasError,
+      sqlite: {
+        databaseUrl: storageErrors.databaseUrl,
+      },
+      mariadb: {
+        host: storageErrors.host,
+        port: storageErrors.port,
+        name: storageErrors.name,
+        user: storageErrors.user,
+        password: storageErrors.password,
+      },
+    },
+    backups: {
+      enabled: draftState.draft.backups.enabled,
+      hasError: backupsHasError,
+      interval: backupsErrors.interval,
+      retention: backupsErrors.retention,
+      directory: backupsErrors.directory,
+    },
+  };
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function checkAccess() {
+      const token = getAuthToken();
+      if (token) {
+        try {
+          await getMe(token);
+          if (!ignore) {
+            router.replace("/dashboard");
+          }
+          return;
+        } catch (error) {
+          clearAuthToken();
+        }
+      }
+
+      const baseUrl = backendUrl.trim().replace(/\/$/, "");
+      if (baseUrl) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => controller.abort(), 4000);
+          const status = await getSetupStatus(baseUrl, {
+            signal: controller.signal,
+          });
+          window.clearTimeout(timeoutId);
+          if (!ignore && status.configured) {
+            router.replace("/login");
+            return;
+          }
+        } catch (error) {
+          // Ignore setup status failures here; user can manually check connection.
+        }
+      }
+
+      if (!ignore) {
+        setIsAuthChecked(true);
+      }
+    }
+
+    checkAccess();
+    return () => {
+      ignore = true;
+    };
+  }, [backendUrl, router]);
+
+  if (!isAuthChecked) {
+    return <div className="min-h-screen bg-ocean-900" />;
+  }
+
+  async function handleCheckBackend() {
+    if (!backendUrl || isCheckingBackend) return;
+    const baseUrl = backendUrl.trim().replace(/\/$/, "");
+    setIsCheckingBackend(true);
+    setStatusError(null);
+    setStatusLabel("Checking connection");
+    setStatusTone("info");
+    try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 6000);
+      const status = await getSetupStatus(baseUrl, { signal: controller.signal });
+      window.clearTimeout(timeoutId);
+      setClientApiBaseUrl(baseUrl);
+      setBackendReady(true);
+      setStatusLabel("Operational");
+      setStatusTone("ready");
+      if (status.configured) {
+        setIsConfigured(true);
+        router.replace("/login");
+      }
+    } catch (error) {
+      const detail =
+        error instanceof DOMException && error.name === "AbortError"
+          ? "The request timed out. The backend may be down or blocked."
+          : error instanceof Error
+            ? error.message || "Unexpected error."
+            : "Unexpected error.";
+      setBackendReady(false);
+      setStatusTone("error");
+      setStatusLabel("Failed");
+      setStatusError(
+        `Backend check failed:\n- ${detail}\n- Confirm the URL.\n- Ensure the backend is running.\n- Try again.`
+      );
+    } finally {
+      setIsCheckingBackend(false);
+    }
+  }
+
+  function initProgress() {
+    const steps: SetupProgressStep[] = [
+      { id: "validate", label: "Validating settings", status: "pending" },
+      { id: "save", label: "Saving admin account", status: "pending" },
+      { id: "db", label: "Preparing database", status: "pending" },
+      { id: "final", label: "Finalizing setup", status: "pending" },
+    ];
+    setProgressSteps(steps);
+    return steps;
+  }
+
+  function updateStep(
+    steps: SetupProgressStep[],
+    id: string,
+    status: SetupProgressStep["status"],
+    detail?: string
+  ) {
+    const next = steps.map((step) =>
+      step.id === id ? { ...step, status, detail } : step
+    );
+    setProgressSteps(next);
+    return next;
+  }
+
+  async function handleSetup() {
+    if (isSubmitting || isConfigured) return;
+    setSubmitError(null);
+    setIsSubmitting(true);
+    let steps = initProgress();
+
+    steps = updateStep(steps, "validate", "active");
+    if (!emailValid) {
+      updateStep(steps, "validate", "error", "Email is not valid.");
+      setSubmitError("Please enter a valid email address.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (!passwordSafe) {
+      updateStep(steps, "validate", "error", "Password does not meet requirements.");
+      setSubmitError("Please use a stronger password.");
+      setIsSubmitting(false);
+      return;
+    }
+    steps = updateStep(steps, "validate", "done");
+
+    steps = updateStep(steps, "save", "active");
+    try {
+      const baseUrl = backendUrl.trim().replace(/\/$/, "");
+      await postSetup(
+        {
+          email: draftState.draft.admin.email.trim(),
+          password: draftState.draft.admin.password,
+        },
+        baseUrl
+      );
+      steps = updateStep(steps, "save", "done");
+    } catch (error) {
+      updateStep(steps, "save", "error", "Failed to save setup.");
+      setSubmitError("Setup failed. Check the backend logs and try again.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    steps = updateStep(steps, "db", "active");
+    try {
+      const baseUrl = backendUrl.trim().replace(/\/$/, "");
+      const response = await fetch(`${baseUrl}/v1/readiness`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Readiness check failed");
+      }
+      steps = updateStep(steps, "db", "done");
+    } catch (error) {
+      updateStep(steps, "db", "error", "Database readiness check failed.");
+      setSubmitError("Database check failed. Please retry.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    steps = updateStep(steps, "final", "active");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    updateStep(steps, "final", "done");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    router.replace("/login");
+  }
+
+  function handleSubmitClick() {
+    if (isSubmitting) return;
+    if (!canSubmit) {
+      setShowErrors(true);
+      return;
+    }
+    handleSetup();
+  }
 
   return (
     <div className="flex min-h-screen flex-col gap-8 px-6 py-8 md:px-12 md:py-10">
-      <header className="flex flex-col gap-4 border-b border-white/10 pb-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="h-11 w-11 rounded-full bg-gradient-to-br from-ocean-700 to-ocean-500 shadow-glow" />
-          <div className="flex flex-col">
-            <span className="font-display text-xl">AquariumMonitor</span>
-            <span className="text-sm text-white/60">Self-hosted setup</span>
-          </div>
-        </div>
-        <nav className="flex gap-3">
-          <button
-            type="button"
-            className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:border-ocean-500/60"
-          >
-            Docs
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:border-ocean-500/60"
-          >
-            Support
-          </button>
-        </nav>
-      </header>
+      <SetupHeader />
 
-      <main className="flex flex-col gap-7">
-        <section className="grid items-center gap-6 md:grid-cols-[1.2fr_0.8fr]">
-          <div>
-            <h1 className="font-display text-4xl">First-run setup</h1>
-            <p className="mt-3 text-base leading-relaxed text-white/70">
-              Configure storage, backups, and your owner account. You can change
-              most settings later, but storage selection should be made now.
-            </p>
-          </div>
-          <div className="glass-panel grid gap-4 border border-ocean-500/20 p-6">
-            <div className="inline-flex items-center gap-2 rounded-full bg-ocean-500/10 px-4 py-2 text-sm text-ocean-400">
-              <span className="h-2 w-2 rounded-full bg-ocean-500 shadow-glow animate-pulseGlow" />
-              Waiting for backend
-            </div>
-            <div className="grid gap-3">
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-white/50">
-                  Backend
-                </div>
-                <div className="text-sm">{backendLabel}</div>
-              </div>
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-white/50">
-                  Mode
-                </div>
-                <div className="text-sm">Single owner</div>
-              </div>
-            </div>
-          </div>
-        </section>
+      <main className="flex flex-col items-center">
+        <div className="flex w-full max-w-3xl flex-col gap-7">
+          <SetupIntro
+            backendUrl={backendUrl}
+            backendMode={backendMode}
+            onBackendUrlChange={setBackendUrl}
+            onBackendModeChange={setBackendMode}
+            onCheckBackend={handleCheckBackend}
+            isChecking={isCheckingBackend}
+            statusLabel={statusLabel}
+            statusTone={statusTone}
+          />
 
-        <section className="glass-panel section-divider p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl">Storage engine</h2>
-            <button
-              type="button"
-              onClick={() => setActiveHelp("storage")}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-sm transition hover:border-ocean-500/60"
-            >
-              ?
-            </button>
-          </div>
-          <div className="grid gap-5">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="flex cursor-pointer flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-ocean-500/40 hover:shadow-lg">
-                <input type="radio" name="storage" defaultChecked className="accent-ocean-500" />
-                <span className="text-sm font-semibold">SQLite</span>
-                <span className="text-sm text-white/60">
-                  Best for single-node self-hosting. Zero-config and reliable.
-                </span>
-              </label>
-              <label className="flex cursor-pointer flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-4 transition hover:-translate-y-0.5 hover:border-ocean-500/40 hover:shadow-lg">
-                <input type="radio" name="storage" className="accent-ocean-500" />
-                <span className="text-sm font-semibold">MariaDB</span>
-                <span className="text-sm text-white/60">
-                  Stronger concurrency for multi-client use and larger systems.
-                </span>
-              </label>
-              <label className="flex cursor-not-allowed flex-col gap-2 rounded-xl border border-white/5 bg-black/10 p-4 opacity-60">
-                <input type="radio" name="storage" disabled className="accent-ocean-500" />
-                <span className="text-sm font-semibold">Postgres</span>
-                <span className="text-sm text-white/50">
-                  Planned. Available in a later release.
-                </span>
-              </label>
+          {statusError ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-100 whitespace-pre-line">
+              {statusError}
             </div>
+          ) : null}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-white/70">
-                Database host
-                <input type="text" defaultValue="localhost" />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                Database name
-                <input type="text" defaultValue="aquarium" />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                User
-                <input type="text" defaultValue="aquarium_app" />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                Password
-                <input type="password" placeholder="••••••••" />
-              </label>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                className="rounded-full border border-ocean-500/40 bg-ocean-500/10 px-5 py-2 text-sm font-semibold transition hover:border-ocean-500/70"
+          {backendReady ? (
+            setupSections.map((section) => (
+              <SetupSection
+                key={section.id}
+                title={section.title}
+                subtitle={section.subtitle}
+                onHelp={() => setActiveHelp(section.helpKey)}
+                hasError={
+                  section.id === "admin"
+                    ? showErrors && validationState.admin.hasError
+                    : section.id === "storage"
+                      ? showErrors && validationState.storage.hasError
+                      : section.id === "backups"
+                        ? showErrors && validationState.backups.hasError
+                        : false
+                }
               >
-                Verify connection
-              </button>
-              <span className="text-sm text-white/60">Not connected</span>
+                {section.render(draftState.draft, draftState, validationState)}
+              </SetupSection>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm text-white/70">
+              Connect to the backend to unlock setup options.
             </div>
-          </div>
-        </section>
+          )}
 
-        <section className="glass-panel section-divider p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl">Backups</h2>
+          <section className="flex flex-wrap justify-end gap-3">
             <button
               type="button"
-              onClick={() => setActiveHelp("backups")}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-sm transition hover:border-ocean-500/60"
+              className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold transition hover:border-ocean-500/60"
             >
-              ?
+              Save draft
             </button>
-          </div>
-          <div className="grid gap-5">
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="relative inline-flex h-7 w-12 cursor-pointer items-center">
-                <input type="checkbox" className="peer sr-only" defaultChecked />
-                <span className="absolute inset-0 rounded-full bg-white/20 transition peer-checked:bg-ocean-500/40" />
-                <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-ocean-900 transition peer-checked:translate-x-5" />
-              </label>
-              <div>
-                <p className="text-sm font-semibold">Enable automatic backups</p>
-                <p className="text-sm text-white/60">
-                  Recommended for SQLite deployments.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <label className="grid gap-2 text-sm text-white/70">
-                Interval (hours)
-                <input type="number" defaultValue={6} />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                Retention (days)
-                <input type="number" defaultValue={7} />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                Backup directory
-                <input type="text" defaultValue="backups" />
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section className="glass-panel section-divider p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl">Owner account</h2>
             <button
               type="button"
-              onClick={() => setActiveHelp("owner")}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-sm transition hover:border-ocean-500/60"
+              onClick={handleSubmitClick}
+              aria-disabled={!formReady}
+              className={[
+                "rounded-full px-5 py-2 text-sm font-semibold shadow-ocean transition",
+                formReady
+                  ? "bg-gradient-to-br from-[#1f8a9b] to-ocean-500 text-ocean-950 hover:-translate-y-0.5"
+                  : "bg-white/10 text-white/50 cursor-not-allowed",
+              ].join(" ")}
             >
-              ?
+              {isSubmitting ? "Setting up..." : "Complete setup"}
             </button>
-          </div>
-          <div className="grid gap-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2 text-sm text-white/70">
-                Email
-                <input type="email" placeholder="owner@example.com" />
-              </label>
-              <label className="grid gap-2 text-sm text-white/70">
-                Password
-                <input type="password" placeholder="Create a strong password" />
-              </label>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="relative inline-flex h-7 w-12 cursor-pointer items-center">
-                <input type="checkbox" className="peer sr-only" defaultChecked />
-                <span className="absolute inset-0 rounded-full bg-white/20 transition peer-checked:bg-ocean-500/40" />
-                <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-ocean-900 transition peer-checked:translate-x-5" />
-              </label>
-              <div>
-                <p className="text-sm font-semibold">Enable demo login</p>
-                <p className="text-sm text-white/60">
-                  Read-only access for dashboard previews.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="flex flex-wrap justify-end gap-3">
-          <button
-            type="button"
-            className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold transition hover:border-ocean-500/60"
-          >
-            Save draft
-          </button>
-          <button
-            type="button"
-            className="rounded-full bg-gradient-to-br from-[#1f8a9b] to-ocean-500 px-5 py-2 text-sm font-semibold text-ocean-950 shadow-ocean transition hover:-translate-y-0.5"
-          >
-            Complete setup
-          </button>
-        </section>
+          {submitError ? (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-sm text-red-100">
+              {submitError}
+            </div>
+          ) : null}
+        </div>
       </main>
 
       {helpDetails ? (
@@ -261,6 +398,12 @@ export default function HomePage() {
           onClose={() => setActiveHelp(null)}
         />
       ) : null}
+
+      <SetupProgressModal
+        isOpen={isSubmitting}
+        title="Setting up your system"
+        steps={progressSteps}
+      />
     </div>
   );
 }

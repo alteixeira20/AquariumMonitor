@@ -1,9 +1,11 @@
-import { apiBaseUrl } from "./config";
+import { getClientApiBaseUrl } from "./config";
 
 export async function fetchJson<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  baseUrl?: string
 ): Promise<T> {
+  const apiBaseUrl = baseUrl ?? getClientApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...options,
     headers: {
