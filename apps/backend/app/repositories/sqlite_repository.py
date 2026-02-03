@@ -93,12 +93,20 @@ async def init_db(
             name TEXT NOT NULL,
             water_type TEXT NOT NULL,
             liters REAL NOT NULL,
+            temperature_enabled INTEGER NOT NULL DEFAULT 1,
             temperature_min REAL NOT NULL,
             temperature_max REAL NOT NULL,
+            ph_enabled INTEGER NOT NULL DEFAULT 1,
             ph_min REAL NOT NULL,
             ph_max REAL NOT NULL,
+            tds_enabled INTEGER NOT NULL DEFAULT 1,
             tds_min REAL NOT NULL,
             tds_max REAL NOT NULL,
+            filter_type TEXT,
+            filter_flow_lph REAL,
+            heater_watts REAL,
+            lighting_type TEXT,
+            notes TEXT,
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id)
         );
@@ -175,6 +183,20 @@ async def init_db(
 
     await _ensure_sqlite_columns(
         conn,
+        "aquariums",
+        {
+            "temperature_enabled": "INTEGER DEFAULT 1",
+            "ph_enabled": "INTEGER DEFAULT 1",
+            "tds_enabled": "INTEGER DEFAULT 1",
+            "filter_type": "TEXT",
+            "filter_flow_lph": "REAL",
+            "heater_watts": "REAL",
+            "lighting_type": "TEXT",
+            "notes": "TEXT",
+        },
+    )
+    await _ensure_sqlite_columns(
+        conn,
         "devices",
         {
             "owner_user_id": "TEXT",
@@ -243,13 +265,21 @@ def _row_to_aquarium(row: tuple[Any, ...]) -> Aquarium:
         name=row[2],
         water_type=row[3],
         liters=row[4],
-        temperature_min=row[5],
-        temperature_max=row[6],
-        ph_min=row[7],
-        ph_max=row[8],
-        tds_min=row[9],
-        tds_max=row[10],
-        created_at=datetime.fromisoformat(row[11]),
+        temperature_enabled=bool(row[5]) if row[5] is not None else True,
+        temperature_min=row[6],
+        temperature_max=row[7],
+        ph_enabled=bool(row[8]) if row[8] is not None else True,
+        ph_min=row[9],
+        ph_max=row[10],
+        tds_enabled=bool(row[11]) if row[11] is not None else True,
+        tds_min=row[12],
+        tds_max=row[13],
+        filter_type=row[14],
+        filter_flow_lph=row[15],
+        heater_watts=row[16],
+        lighting_type=row[17],
+        notes=row[18],
+        created_at=datetime.fromisoformat(row[19]),
     )
 
 
@@ -336,10 +366,13 @@ class SqliteAquariumRepository(AquariumRepository):
             """
             INSERT INTO aquariums (
                 id, user_id, name, water_type, liters,
-                temperature_min, temperature_max, ph_min, ph_max,
-                tds_min, tds_max, created_at
+                temperature_enabled, temperature_min, temperature_max,
+                ph_enabled, ph_min, ph_max,
+                tds_enabled, tds_min, tds_max,
+                filter_type, filter_flow_lph, heater_watts,
+                lighting_type, notes, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 str(aquarium.id),
@@ -347,12 +380,20 @@ class SqliteAquariumRepository(AquariumRepository):
                 aquarium.name,
                 aquarium.water_type,
                 aquarium.liters,
+                1 if aquarium.temperature_enabled else 0,
                 aquarium.temperature_min,
                 aquarium.temperature_max,
+                1 if aquarium.ph_enabled else 0,
                 aquarium.ph_min,
                 aquarium.ph_max,
+                1 if aquarium.tds_enabled else 0,
                 aquarium.tds_min,
                 aquarium.tds_max,
+                aquarium.filter_type,
+                aquarium.filter_flow_lph,
+                aquarium.heater_watts,
+                aquarium.lighting_type,
+                aquarium.notes,
                 created_at,
             ),
         )
@@ -363,8 +404,11 @@ class SqliteAquariumRepository(AquariumRepository):
         cursor = await self._conn.execute(
             """
             SELECT id, user_id, name, water_type, liters,
-                   temperature_min, temperature_max, ph_min, ph_max,
-                   tds_min, tds_max, created_at
+                   temperature_enabled, temperature_min, temperature_max,
+                   ph_enabled, ph_min, ph_max,
+                   tds_enabled, tds_min, tds_max,
+                   filter_type, filter_flow_lph, heater_watts,
+                   lighting_type, notes, created_at
             FROM aquariums
             WHERE user_id = ?
             ORDER BY created_at DESC
@@ -379,8 +423,11 @@ class SqliteAquariumRepository(AquariumRepository):
         cursor = await self._conn.execute(
             """
             SELECT id, user_id, name, water_type, liters,
-                   temperature_min, temperature_max, ph_min, ph_max,
-                   tds_min, tds_max, created_at
+                   temperature_enabled, temperature_min, temperature_max,
+                   ph_enabled, ph_min, ph_max,
+                   tds_enabled, tds_min, tds_max,
+                   filter_type, filter_flow_lph, heater_watts,
+                   lighting_type, notes, created_at
             FROM aquariums
             WHERE id = ?
             """,
@@ -391,6 +438,62 @@ class SqliteAquariumRepository(AquariumRepository):
         if row is None:
             return None
         return _row_to_aquarium(row)
+
+    async def update(self, aquarium: Aquarium) -> Aquarium:
+        await self._conn.execute(
+            """
+            UPDATE aquariums
+            SET name = ?,
+                water_type = ?,
+                liters = ?,
+                temperature_enabled = ?,
+                temperature_min = ?,
+                temperature_max = ?,
+                ph_enabled = ?,
+                ph_min = ?,
+                ph_max = ?,
+                tds_enabled = ?,
+                tds_min = ?,
+                tds_max = ?,
+                filter_type = ?,
+                filter_flow_lph = ?,
+                heater_watts = ?,
+                lighting_type = ?,
+                notes = ?
+            WHERE id = ?
+            """,
+            (
+                aquarium.name,
+                aquarium.water_type,
+                aquarium.liters,
+                1 if aquarium.temperature_enabled else 0,
+                aquarium.temperature_min,
+                aquarium.temperature_max,
+                1 if aquarium.ph_enabled else 0,
+                aquarium.ph_min,
+                aquarium.ph_max,
+                1 if aquarium.tds_enabled else 0,
+                aquarium.tds_min,
+                aquarium.tds_max,
+                aquarium.filter_type,
+                aquarium.filter_flow_lph,
+                aquarium.heater_watts,
+                aquarium.lighting_type,
+                aquarium.notes,
+                str(aquarium.id),
+            ),
+        )
+        await self._conn.commit()
+        return aquarium
+
+    async def delete(self, aquarium_id: UUID) -> None:
+        await self._conn.execute(
+            "DELETE FROM aquarium_devices WHERE aquarium_id = ?", (str(aquarium_id),)
+        )
+        await self._conn.execute(
+            "DELETE FROM aquariums WHERE id = ?", (str(aquarium_id),)
+        )
+        await self._conn.commit()
 
 
 class SqliteAquariumDeviceRepository(AquariumDeviceRepository):

@@ -11,3 +11,10 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class UserMeResponse(BaseModel):
+    user_id: str
+    email: str | None
+    role: str
+    is_demo: bool

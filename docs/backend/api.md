@@ -5,6 +5,7 @@ Base URL: `/v1`
 ## Auth & setup
 - `GET /setup/status` — returns whether the owner exists and whether demo is enabled.
 - `POST /setup` — creates the owner account on first run.
+- `GET /me` — returns the authenticated user context.
 - `POST /login` — returns a JWT for the owner or demo account.
 
 `POST /setup` request:
@@ -25,6 +26,8 @@ Notes:
 - `POST /aquariums` — create aquarium.
 - `GET /aquariums` — list aquariums for current user.
 - `GET /aquariums/{aquarium_id}` — get aquarium.
+- `PUT /aquariums/{aquarium_id}` — update aquarium.
+- `DELETE /aquariums/{aquarium_id}` — delete aquarium.
 - `POST /aquariums/{aquarium_id}/devices/{device_id}` — attach device.
 - `DELETE /aquariums/{aquarium_id}/devices/{device_id}` — detach device.
 - `GET /aquariums/{aquarium_id}/devices` — list attached devices.

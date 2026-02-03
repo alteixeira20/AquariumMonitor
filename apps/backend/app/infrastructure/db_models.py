@@ -30,12 +30,20 @@ class AquariumModel(Base):
         Enum("fresh", "salt", name="water_type"), nullable=False
     )
     liters: Mapped[float] = mapped_column(Float, nullable=False)
+    temperature_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     temperature_min: Mapped[float] = mapped_column(Float, nullable=False)
     temperature_max: Mapped[float] = mapped_column(Float, nullable=False)
+    ph_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     ph_min: Mapped[float] = mapped_column(Float, nullable=False)
     ph_max: Mapped[float] = mapped_column(Float, nullable=False)
+    tds_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     tds_min: Mapped[float] = mapped_column(Float, nullable=False)
     tds_max: Mapped[float] = mapped_column(Float, nullable=False)
+    filter_type: Mapped[str | None] = mapped_column(String(50))
+    filter_flow_lph: Mapped[float | None] = mapped_column(Float)
+    heater_watts: Mapped[float | None] = mapped_column(Float)
+    lighting_type: Mapped[str | None] = mapped_column(String(50))
+    notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
 

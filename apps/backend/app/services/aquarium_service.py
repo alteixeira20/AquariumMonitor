@@ -22,3 +22,17 @@ class AquariumService:
         if aquarium is None or aquarium.user_id != user_id:
             raise DomainError("Aquarium not found", status_code=404, error="not_found")
         return aquarium
+
+    async def update_aquarium(self, aquarium: Aquarium, user_id: UUID) -> Aquarium:
+        existing = await self.repository.get(aquarium.id)
+        if existing is None or existing.user_id != user_id:
+            raise DomainError("Aquarium not found", status_code=404, error="not_found")
+        aquarium.user_id = existing.user_id
+        aquarium.created_at = existing.created_at
+        return await self.repository.update(aquarium)
+
+    async def delete_aquarium(self, user_id: UUID, aquarium_id: UUID) -> None:
+        existing = await self.repository.get(aquarium_id)
+        if existing is None or existing.user_id != user_id:
+            raise DomainError("Aquarium not found", status_code=404, error="not_found")
+        await self.repository.delete(aquarium_id)

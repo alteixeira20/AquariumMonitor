@@ -7,6 +7,7 @@ from app.api.v1.devices import router as devices_router
 from app.api.v1.events import router as events_router
 from app.api.v1.health import router as health_router
 from app.api.v1.login import router as login_router
+from app.api.v1.me import router as me_router
 from app.api.v1.setup import router as setup_router
 from app.api.v1.readings import router as readings_router
 from app.core.auth import jwt_dependency
@@ -18,6 +19,7 @@ api_router = APIRouter()
 api_router.include_router(health_router, prefix="/v1", tags=["health"])
 api_router.include_router(login_router, prefix="/v1", tags=["auth"])
 api_router.include_router(setup_router, prefix="/v1", tags=["auth"])
+api_router.include_router(me_router, prefix="/v1", tags=["auth"])
 api_router.include_router(events_router, prefix="/v1", tags=["events"])
 api_router.include_router(
     aquariums_router,

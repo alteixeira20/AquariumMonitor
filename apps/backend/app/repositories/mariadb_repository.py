@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.domain.aquarium import Aquarium
@@ -373,12 +373,20 @@ class MariaDbAquariumRepository(AquariumRepository):
             name=aquarium.name,
             water_type=aquarium.water_type,
             liters=aquarium.liters,
+            temperature_enabled=aquarium.temperature_enabled,
             temperature_min=aquarium.temperature_min,
             temperature_max=aquarium.temperature_max,
+            ph_enabled=aquarium.ph_enabled,
             ph_min=aquarium.ph_min,
             ph_max=aquarium.ph_max,
+            tds_enabled=aquarium.tds_enabled,
             tds_min=aquarium.tds_min,
             tds_max=aquarium.tds_max,
+            filter_type=aquarium.filter_type,
+            filter_flow_lph=aquarium.filter_flow_lph,
+            heater_watts=aquarium.heater_watts,
+            lighting_type=aquarium.lighting_type,
+            notes=aquarium.notes,
             created_at=aquarium.created_at.replace(tzinfo=None),
         )
         async with self._session_factory() as session:
@@ -402,6 +410,46 @@ class MariaDbAquariumRepository(AquariumRepository):
             if model is None:
                 return None
             return _model_to_aquarium(model)
+
+    async def update(self, aquarium: Aquarium) -> Aquarium:
+        async with self._session_factory() as session:
+            await session.execute(
+                update(AquariumModel)
+                .where(AquariumModel.id == str(aquarium.id))
+                .values(
+                    name=aquarium.name,
+                    water_type=aquarium.water_type,
+                    liters=aquarium.liters,
+                    temperature_enabled=aquarium.temperature_enabled,
+                    temperature_min=aquarium.temperature_min,
+                    temperature_max=aquarium.temperature_max,
+                    ph_enabled=aquarium.ph_enabled,
+                    ph_min=aquarium.ph_min,
+                    ph_max=aquarium.ph_max,
+                    tds_enabled=aquarium.tds_enabled,
+                    tds_min=aquarium.tds_min,
+                    tds_max=aquarium.tds_max,
+                    filter_type=aquarium.filter_type,
+                    filter_flow_lph=aquarium.filter_flow_lph,
+                    heater_watts=aquarium.heater_watts,
+                    lighting_type=aquarium.lighting_type,
+                    notes=aquarium.notes,
+                )
+            )
+            await session.commit()
+        return aquarium
+
+    async def delete(self, aquarium_id: UUID) -> None:
+        async with self._session_factory() as session:
+            await session.execute(
+                delete(AquariumDeviceModel).where(
+                    AquariumDeviceModel.aquarium_id == str(aquarium_id)
+                )
+            )
+            await session.execute(
+                delete(AquariumModel).where(AquariumModel.id == str(aquarium_id))
+            )
+            await session.commit()
 
 
 class MariaDbAquariumDeviceRepository(AquariumDeviceRepository):
@@ -639,12 +687,20 @@ def _model_to_aquarium(model: AquariumModel) -> Aquarium:
         name=model.name,
         water_type=model.water_type,
         liters=model.liters,
+        temperature_enabled=model.temperature_enabled,
         temperature_min=model.temperature_min,
         temperature_max=model.temperature_max,
+        ph_enabled=model.ph_enabled,
         ph_min=model.ph_min,
         ph_max=model.ph_max,
+        tds_enabled=model.tds_enabled,
         tds_min=model.tds_min,
         tds_max=model.tds_max,
+        filter_type=model.filter_type,
+        filter_flow_lph=model.filter_flow_lph,
+        heater_watts=model.heater_watts,
+        lighting_type=model.lighting_type,
+        notes=model.notes,
         created_at=model.created_at,
     )
 

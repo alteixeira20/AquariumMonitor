@@ -230,6 +230,13 @@ class MemoryAquariumRepository(AquariumRepository):
     async def get(self, aquarium_id: UUID) -> Aquarium | None:
         return self._aquariums.get(aquarium_id)
 
+    async def update(self, aquarium: Aquarium) -> Aquarium:
+        self._aquariums[aquarium.id] = aquarium
+        return aquarium
+
+    async def delete(self, aquarium_id: UUID) -> None:
+        self._aquariums.pop(aquarium_id, None)
+
 
 class MemoryAquariumDeviceRepository(AquariumDeviceRepository):
     def __init__(self) -> None:

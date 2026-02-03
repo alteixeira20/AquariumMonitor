@@ -10,7 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.api.deps import require_service
 from app.core.auth import UserContext, require_write_access, user_context_dependency
 from app.domain.aquarium import Aquarium
-from app.schemas.aquarium_schema import AquariumCreateRequest, AquariumResponse
+from app.schemas.aquarium_schema import (
+    AquariumCreateRequest,
+    AquariumResponse,
+    AquariumUpdateRequest,
+)
 from app.schemas.device_schema import DeviceResponse
 from app.services.aquarium_device_service import AquariumDeviceService
 from app.services.aquarium_service import AquariumService
@@ -62,12 +66,20 @@ async def create_aquarium(
         name=payload.name,
         water_type=payload.water_type,
         liters=payload.liters,
+        temperature_enabled=payload.temperature_enabled,
         temperature_min=payload.temperature_min,
         temperature_max=payload.temperature_max,
+        ph_enabled=payload.ph_enabled,
         ph_min=payload.ph_min,
         ph_max=payload.ph_max,
+        tds_enabled=payload.tds_enabled,
         tds_min=payload.tds_min,
         tds_max=payload.tds_max,
+        filter_type=payload.filter_type,
+        filter_flow_lph=payload.filter_flow_lph,
+        heater_watts=payload.heater_watts,
+        lighting_type=payload.lighting_type,
+        notes=payload.notes,
     )
     created = await service.create_aquarium(aquarium)
     return AquariumResponse.from_domain(created)
@@ -90,6 +102,47 @@ async def get_aquarium(
 ) -> AquariumResponse:
     aquarium = await service.get_aquarium(ctx.user_id, aquarium_id)
     return AquariumResponse.from_domain(aquarium)
+
+
+@router.put("/{aquarium_id}", response_model=AquariumResponse)
+async def update_aquarium(
+    aquarium_id: UUID,
+    payload: AquariumUpdateRequest,
+    service: AquariumServiceDep,
+    ctx: WriteAccessDep,
+) -> AquariumResponse:
+    aquarium = Aquarium(
+        id=aquarium_id,
+        user_id=ctx.user_id,
+        name=payload.name,
+        water_type=payload.water_type,
+        liters=payload.liters,
+        temperature_enabled=payload.temperature_enabled,
+        temperature_min=payload.temperature_min,
+        temperature_max=payload.temperature_max,
+        ph_enabled=payload.ph_enabled,
+        ph_min=payload.ph_min,
+        ph_max=payload.ph_max,
+        tds_enabled=payload.tds_enabled,
+        tds_min=payload.tds_min,
+        tds_max=payload.tds_max,
+        filter_type=payload.filter_type,
+        filter_flow_lph=payload.filter_flow_lph,
+        heater_watts=payload.heater_watts,
+        lighting_type=payload.lighting_type,
+        notes=payload.notes,
+    )
+    updated = await service.update_aquarium(aquarium, ctx.user_id)
+    return AquariumResponse.from_domain(updated)
+
+
+@router.delete("/{aquarium_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_aquarium(
+    aquarium_id: UUID,
+    service: AquariumServiceDep,
+    ctx: WriteAccessDep,
+) -> None:
+    await service.delete_aquarium(ctx.user_id, aquarium_id)
 
 
 @router.post("/{aquarium_id}/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -105,6 +105,12 @@ class AquariumRepository(ABC):
     @abstractmethod
     async def get(self, aquarium_id: UUID) -> Aquarium | None: ...
 
+    @abstractmethod
+    async def update(self, aquarium: Aquarium) -> Aquarium: ...
+
+    @abstractmethod
+    async def delete(self, aquarium_id: UUID) -> None: ...
+
 
 class AquariumDeviceRepository(ABC):
     @abstractmethod
