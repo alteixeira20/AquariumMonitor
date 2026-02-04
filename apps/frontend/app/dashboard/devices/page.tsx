@@ -58,6 +58,7 @@ export default function DevicesPage() {
   const [logView, setLogView] = useState<LogView>("5");
   const [logPage, setLogPage] = useState(1);
   const [logTotal, setLogTotal] = useState(0);
+  const [logPageSize, setLogPageSize] = useState(5);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
@@ -194,7 +195,13 @@ export default function DevicesPage() {
       setIsLoadingLogs(true);
       try {
         const pageSize =
-          logView === "5" ? 5 : logView === "15" ? 15 : logView === "30" ? 30 : 50;
+          logView === "5"
+            ? 5
+            : logView === "15"
+              ? 15
+              : logView === "30"
+                ? 30
+                : logPageSize;
         const readingPages = await Promise.all(
           devices.map(async (device) => {
             try {
@@ -273,7 +280,7 @@ export default function DevicesPage() {
       ignore = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [devices, isChecking, logPage, logView]);
+  }, [devices, isChecking, logPage, logPageSize, logView]);
 
   if (isChecking) {
     return <div className="min-h-screen bg-ocean-900" />;
@@ -575,9 +582,24 @@ export default function DevicesPage() {
             {logView === "all" && logTotal > 0 ? (
               <div className="mt-4 flex items-center justify-between text-sm text-white/60">
                 <div>
-                  Page {logPage} of {Math.max(1, Math.ceil(logTotal / 50))}
+                  Page {logPage} of {Math.max(1, Math.ceil(logTotal / logPageSize))}
                 </div>
                 <div className="flex items-center gap-2">
+                  <div className="min-w-[140px]">
+                    <Select<"5" | "15" | "30">
+                      value={String(logPageSize) as "5" | "15" | "30"}
+                      onChange={(value) => {
+                        const size = Number(value);
+                        setLogPageSize(size);
+                        setLogPage(1);
+                      }}
+                      options={[
+                        { value: "5", label: "5 per page" },
+                        { value: "15", label: "15 per page" },
+                        { value: "30", label: "30 per page" },
+                      ]}
+                    />
+                  </div>
                   <button
                     type="button"
                     className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-ocean-500/40"
@@ -591,10 +613,10 @@ export default function DevicesPage() {
                     className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-ocean-500/40"
                     onClick={() =>
                       setLogPage((p) =>
-                        Math.min(Math.ceil(logTotal / 50), p + 1)
+                        Math.min(Math.ceil(logTotal / logPageSize), p + 1)
                       )
                     }
-                    disabled={logPage >= Math.ceil(logTotal / 50)}
+                    disabled={logPage >= Math.ceil(logTotal / logPageSize)}
                   >
                     Next
                   </button>
