@@ -232,6 +232,7 @@ export default function DashboardPage() {
     ? (() => {
         const diffMs = now - new Date(latestReading.received_at).getTime();
         const seconds = Math.max(0, Math.floor(diffMs / 1000));
+        if (seconds >= 180) return "Offline";
         if (seconds < 60) return `Updated ${seconds}s ago`;
         const minutes = Math.floor(seconds / 60);
         return `Updated ${minutes}m ago`;
@@ -306,7 +307,10 @@ export default function DashboardPage() {
                   className={[
                     "h-2 w-2 rounded-full",
                     latestReading?.received_at
-                      ? "bg-emerald-400 shadow-glow"
+                      ? now - new Date(latestReading.received_at).getTime() >=
+                        180000
+                        ? "bg-red-400 shadow-glow"
+                        : "bg-emerald-400 shadow-glow"
                       : "bg-yellow-300",
                   ].join(" ")}
                 />
@@ -358,7 +362,7 @@ export default function DashboardPage() {
                 {isLoadingLatest
                   ? "Loading latest readings…"
                   : latestReading
-                    ? "Live readings are updating from the attached device."
+                    ? "Latest reading received."
                     : "No readings yet. Attach a calibrated device to start tracking."}
               </div>
             </div>

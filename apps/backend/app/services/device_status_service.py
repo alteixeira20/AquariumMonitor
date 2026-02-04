@@ -10,7 +10,7 @@ from app.repositories.base_repository import (
     ReadingRepository,
 )
 
-OFFLINE_THRESHOLD_SECONDS = 300
+OFFLINE_THRESHOLD_SECONDS = 180
 
 
 class DeviceStatusService:

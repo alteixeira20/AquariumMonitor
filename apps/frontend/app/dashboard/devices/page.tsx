@@ -17,6 +17,7 @@ type Device = {
   created_at: string;
 };
 type Aquarium = { id: string; name: string };
+type DeviceStatus = { device_id: string; status: "online" | "offline" };
 
 export default function DevicesPage() {
   const router = useRouter();
@@ -25,6 +26,9 @@ export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [aquariumByDevice, setAquariumByDevice] = useState<
     Record<string, string>
+  >({});
+  const [statusByDevice, setStatusByDevice] = useState<
+    Record<string, "online" | "offline">
   >({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -96,14 +100,33 @@ export default function DevicesPage() {
           },
           getClientApiBaseUrl()
         );
+        const statuses = await Promise.all(
+          data.map(async (device) => {
+            try {
+              return await fetchJson<DeviceStatus>(
+                `/v1/devices/${device.id}/status`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+            } catch {
+              return { device_id: device.id, status: "offline" } as DeviceStatus;
+            }
+          })
+        );
         if (!ignore) {
           setDevices(data);
           setAquariumByDevice(mapping);
+          setStatusByDevice(
+            Object.fromEntries(
+              statuses.map((status) => [status.device_id, status.status])
+            )
+          );
         }
       } catch (err) {
         if (!ignore) {
           setDevices([]);
           setAquariumByDevice({});
+          setStatusByDevice({});
           push("Failed to load devices.", "error");
         }
       } finally {
@@ -175,6 +198,7 @@ export default function DevicesPage() {
                     const preset = device.location?.startsWith("Simulated · ")
                       ? device.location.replace("Simulated · ", "")
                       : "Manual";
+                    const status = statusByDevice[device.id] ?? "offline";
                     return (
                       <div
                         key={device.id}
@@ -189,12 +213,12 @@ export default function DevicesPage() {
                           <span
                             className={[
                               "rounded-full border px-3 py-1 text-sm",
-                              device.is_active
+                              status === "online"
                                 ? "border-emerald-500/40 text-emerald-200"
-                                : "border-white/10 text-white/50",
+                                : "border-red-400/40 text-red-200",
                             ].join(" ")}
                           >
-                            {device.is_active ? "Active" : "Inactive"}
+                            {status === "online" ? "Online" : "Offline"}
                           </span>
                         </div>
                       </div>
