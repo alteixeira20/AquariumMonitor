@@ -39,6 +39,10 @@ Each pattern adds small noise so values remain natural even when stable.
 cd apps/simulator
 SIM_CONFIG=./config.toml python main.py
 ```
+For UI‑triggered simulations, set the queue path to the backend data folder:
+```
+queue_path = "../backend/data/sim_queue.jsonl"
+```
 
 ## Run with Docker
 ```

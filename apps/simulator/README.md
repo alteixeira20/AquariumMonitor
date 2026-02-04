@@ -35,6 +35,11 @@ This appends a JSONL record into the simulator queue. The simulator watches the 
 ```
 SIM_CONFIG=./config.toml python main.py
 ```
+For UI‑triggered simulations, point the queue path at the backend data folder:
+```
+# config.toml
+queue_path = "../backend/data/sim_queue.jsonl"
+```
 
 ## Docker
 Use the compose profile:

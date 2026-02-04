@@ -10,7 +10,7 @@ poll_seconds = 3
 tick_seconds = 5
 seed = 42
 state_path = "./data/sim_state.json"
-queue_path = "./data/sim_queue.jsonl"
+queue_path = "../backend/data/sim_queue.jsonl"
 queue_poll_seconds = 2
 
 [calibration]
