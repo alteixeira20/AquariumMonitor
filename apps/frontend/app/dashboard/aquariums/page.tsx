@@ -380,7 +380,7 @@ export default function AquariumsPage() {
                             >
                               <button
                                 type="button"
-                                className="text-left font-semibold text-white transition hover:text-ocean-300"
+                                className="text-left font-semibold text-white transition hover:text-ocean-300 hover:drop-shadow-[0_0_10px_rgba(56,189,248,0.6)]"
                                 onClick={() =>
                                   router.push(
                                     `/dashboard/aquariums/${aquarium.id}`
