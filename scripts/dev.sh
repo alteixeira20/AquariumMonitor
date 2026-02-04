@@ -23,9 +23,15 @@ if [[ ! -f apps/simulator/config.toml ]]; then
   echo "Created apps/simulator/config.toml from example for dev."
 fi
 
+if [[ ! -d apps/simulator/.venv ]]; then
+  python3 -m venv apps/simulator/.venv
+  apps/simulator/.venv/bin/pip install --upgrade pip
+  apps/simulator/.venv/bin/pip install -r apps/simulator/requirements.txt
+fi
+
 (
   cd apps/simulator
-  SIM_CONFIG=./config.toml python3 main.py
+  SIM_CONFIG=./config.toml ./.venv/bin/python3 main.py
 ) &
 pids+=("$!")
 
