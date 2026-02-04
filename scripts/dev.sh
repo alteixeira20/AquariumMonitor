@@ -29,7 +29,7 @@ auto_setup = false
 poll_seconds = 3
 
 [simulator]
-tick_seconds = 5
+tick_seconds = 10
 seed = 42
 state_path = "/tmp/aquariummonitor_sim_state.json"
 queue_path = "../backend/data/sim_queue.jsonl"

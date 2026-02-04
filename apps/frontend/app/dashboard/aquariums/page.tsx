@@ -137,6 +137,7 @@ export default function AquariumsPage() {
 
   useEffect(() => {
     let ignore = false;
+    let intervalId: number | undefined;
 
     async function loadAquariums() {
       const token = getAuthToken();
@@ -245,10 +246,12 @@ export default function AquariumsPage() {
 
     if (!isChecking) {
       loadAquariums();
+      intervalId = window.setInterval(loadAquariums, 10000);
     }
 
     return () => {
       ignore = true;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [isChecking]);
 

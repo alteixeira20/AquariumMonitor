@@ -150,6 +150,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let ignore = false;
+    let intervalId: number | undefined;
 
     async function loadLatestReading() {
       const token = getAuthToken();
@@ -211,10 +212,12 @@ export default function DashboardPage() {
 
     if (!isChecking) {
       loadLatestReading();
+      intervalId = window.setInterval(loadLatestReading, 10000);
     }
 
     return () => {
       ignore = true;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [activeAquariumId, isChecking]);
 
