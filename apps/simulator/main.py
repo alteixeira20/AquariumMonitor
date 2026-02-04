@@ -775,9 +775,9 @@ def emit_loop(
             consume_queue(client, cfg, state, device_states)
             last_queue_check = now
 
-        for state in device_states.values():
+        for device_state in device_states.values():
             temp, ph, tds = _pattern_values(
-                state.pattern, state, tick, state.aquarium, rand
+                device_state.pattern, device_state, tick, device_state.aquarium, rand
             )
             voltage_ph = _ph_to_voltage(ph, calibration)
             voltage_tds = _voltage_for_tds(temp, tds)
@@ -787,7 +787,7 @@ def emit_loop(
                 "raw_ph_voltage": round(_clamp(voltage_ph, 0.0, PH_VREF), 3),
                 "raw_tds_voltage": round(_clamp(voltage_tds, 0.0, TDS_VREF), 3),
             }
-            client.post_reading(state.device_id, state.api_key, payload)
+            client.post_reading(device_state.device_id, device_state.api_key, payload)
 
         tick += 1
         time.sleep(cfg.simulator.tick_seconds)
