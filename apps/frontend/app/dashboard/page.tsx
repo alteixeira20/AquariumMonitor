@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearAuthToken, getAuthToken } from "../../lib/auth";
 import { getMe } from "../../lib/auth_api";
@@ -12,12 +12,27 @@ import { getClientApiBaseUrl } from "../../lib/config";
 export default function DashboardPage() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
-  const [aquariums, setAquariums] = useState<Array<{ id: string; name: string }>>(
-    []
-  );
+  const [aquariums, setAquariums] = useState<
+    Array<{ id: string; name: string; water_type: string; liters: number }>
+  >([]);
+  const [devices, setDevices] = useState<
+    Array<{ id: string; name: string; location: string | null; is_active: boolean }>
+  >([]);
+  const [aquariumByDevice, setAquariumByDevice] = useState<
+    Record<string, string>
+  >({});
   const [activeAquariumId, setActiveAquariumId] = useState("");
   const activeAquarium = aquariums.find((aq) => aq.id === activeAquariumId);
+  const [trackedCount, setTrackedCount] = useState(0);
+  const [latestReading, setLatestReading] = useState<{
+    temperature_c: number | null;
+    ph_value: number | null;
+    tds_ppm: number | null;
+    received_at: string | null;
+  } | null>(null);
   const [isLoadingAquariums, setIsLoadingAquariums] = useState(true);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(true);
+  const [isLoadingLatest, setIsLoadingLatest] = useState(true);
 
   useEffect(() => {
     let ignore = false;
@@ -46,12 +61,15 @@ export default function DashboardPage() {
   useEffect(() => {
     let ignore = false;
 
-    async function loadAquariums() {
+    async function loadData() {
       const token = getAuthToken();
       if (!token) return;
       setIsLoadingAquariums(true);
+      setIsLoadingDevices(true);
       try {
-        const data = await fetchJson<Array<{ id: string; name: string }>>(
+        const aquariumsData = await fetchJson<
+          Array<{ id: string; name: string; water_type: string; liters: number }>
+        >(
           "/v1/aquariums",
           {
             headers: {
@@ -61,22 +79,144 @@ export default function DashboardPage() {
           getClientApiBaseUrl()
         );
         if (ignore) return;
-        setAquariums(data);
-        if (data.length > 0) {
-          setActiveAquariumId((prev) => prev || data[0].id);
+        setAquariums(aquariumsData);
+        if (aquariumsData.length > 0) {
+          setActiveAquariumId((prev) => prev || aquariumsData[0].id);
         }
+
+        const attachments = await Promise.all(
+          aquariumsData.map(async (aq) => {
+            try {
+              const devicesForAquarium = await fetchJson<Array<{ id: string }>>(
+                `/v1/aquariums/${aq.id}/devices`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+              return {
+                aquariumId: aq.id,
+                aquariumName: aq.name,
+                deviceIds: devicesForAquarium.map((device) => device.id),
+              };
+            } catch {
+              return { aquariumId: aq.id, aquariumName: aq.name, deviceIds: [] };
+            }
+          })
+        );
+
+        const deviceMap: Record<string, string> = {};
+        let tracked = 0;
+        attachments.forEach((item) => {
+          if (item.deviceIds.length > 0) tracked += 1;
+          item.deviceIds.forEach((deviceId) => {
+            deviceMap[deviceId] = item.aquariumName;
+          });
+        });
+        setTrackedCount(tracked);
+        setAquariumByDevice(deviceMap);
+
+        const devicesData = await fetchJson<
+          Array<{ id: string; name: string; location: string | null; is_active: boolean }>
+        >(
+          "/v1/devices/owned",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+          getClientApiBaseUrl()
+        );
+        if (ignore) return;
+        setDevices(devicesData);
       } catch (err) {
-        if (!ignore) setAquariums([]);
+        if (!ignore) {
+          setAquariums([]);
+          setDevices([]);
+          setTrackedCount(0);
+          setAquariumByDevice({});
+        }
       } finally {
-        if (!ignore) setIsLoadingAquariums(false);
+        if (!ignore) {
+          setIsLoadingAquariums(false);
+          setIsLoadingDevices(false);
+        }
       }
     }
 
-    loadAquariums();
+    loadData();
     return () => {
       ignore = true;
     };
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadLatestReading() {
+      const token = getAuthToken();
+      if (!token || !activeAquariumId) return;
+      setIsLoadingLatest(true);
+      try {
+        const devicesForAquarium = await fetchJson<Array<{ id: string }>>(
+          `/v1/aquariums/${activeAquariumId}/devices`,
+          { headers: { Authorization: `Bearer ${token}` } },
+          getClientApiBaseUrl()
+        );
+        if (!devicesForAquarium.length) {
+          if (!ignore) setLatestReading(null);
+          return;
+        }
+        const readings = await Promise.all(
+          devicesForAquarium.map(async (device) => {
+            try {
+              return await fetchJson<{
+                temperature_c: number;
+                ph_value: number;
+                tds_ppm: number;
+                received_at: string;
+              }>(
+                `/v1/readings/${device.id}/latest`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+            } catch {
+              return null;
+            }
+          })
+        );
+        const latest = readings
+          .filter((reading) => reading?.received_at)
+          .sort((a, b) => {
+            if (!a || !b) return 0;
+            return (
+              new Date(b.received_at).getTime() -
+              new Date(a.received_at).getTime()
+            );
+          })[0];
+        if (!ignore) {
+          setLatestReading(
+            latest
+              ? {
+                  temperature_c: latest.temperature_c ?? null,
+                  ph_value: latest.ph_value ?? null,
+                  tds_ppm: latest.tds_ppm ?? null,
+                  received_at: latest.received_at ?? null,
+                }
+              : null
+          );
+        }
+      } finally {
+        if (!ignore) setIsLoadingLatest(false);
+      }
+    }
+
+    if (!isChecking) {
+      loadLatestReading();
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeAquariumId, isChecking]);
 
   if (isChecking) {
     return (
@@ -121,6 +261,7 @@ export default function DashboardPage() {
                 <button
                   className="rounded-full border border-white/20 px-5 py-2 text-base font-semibold transition hover:border-ocean-500/60"
                   type="button"
+                  onClick={() => router.push("/dashboard/devices/new")}
                 >
                   Register device
                 </button>
@@ -157,18 +298,36 @@ export default function DashboardPage() {
             <div className="mt-4 grid gap-3 text-base text-white/60">
               <div className="flex items-center justify-between">
                 <span>Temperature</span>
-                <span className="text-white/80">—</span>
+                <span className="text-white/80">
+                  {latestReading?.temperature_c ?? "—"}
+                  {latestReading?.temperature_c !== null &&
+                  latestReading?.temperature_c !== undefined
+                    ? "°C"
+                    : ""}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>pH</span>
-                <span className="text-white/80">—</span>
+                <span className="text-white/80">
+                  {latestReading?.ph_value ?? "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>TDS</span>
-                <span className="text-white/80">—</span>
+                <span className="text-white/80">
+                  {latestReading?.tds_ppm ?? "—"}
+                  {latestReading?.tds_ppm !== null &&
+                  latestReading?.tds_ppm !== undefined
+                    ? " ppm"
+                    : ""}
+                </span>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/50">
-                No readings yet. Attach a calibrated device to start tracking.
+                {isLoadingLatest
+                  ? "Loading latest readings…"
+                  : latestReading
+                    ? "Live readings are updating from the attached device."
+                    : "No readings yet. Attach a calibrated device to start tracking."}
               </div>
             </div>
           </div>
@@ -176,7 +335,10 @@ export default function DashboardPage() {
 
         <section className="grid gap-6 md:grid-cols-2">
           {[
-            { label: "Tracked aquariums", value: "0" },
+            {
+              label: "Tracked aquariums",
+              value: isLoadingAquariums ? "—" : `${trackedCount}`,
+            },
             { label: "Alerts today", value: "0" },
           ].map((item) => (
             <div key={item.label} className="glass-panel p-5">
@@ -193,17 +355,78 @@ export default function DashboardPage() {
         <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
           <div className="glass-panel p-6">
             <div className="text-base font-semibold">Aquariums</div>
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
-              No aquariums yet. Create your first aquarium to start tracking
-              water quality.
-            </div>
+            {aquariums.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
+                No aquariums yet. Create your first aquarium to start tracking
+                water quality.
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 text-base text-white/70">
+                {aquariums.slice(0, 3).map((aq) => (
+                  <div
+                    key={aq.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                  >
+                    <div className="font-semibold text-white">{aq.name}</div>
+                    <div className="text-sm text-white/60">
+                      {aq.water_type} · {aq.liters} L
+                    </div>
+                  </div>
+                ))}
+                {aquariums.length > 3 ? (
+                  <div className="text-sm text-white/50">
+                    +{aquariums.length - 3} more aquariums
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
           <div className="glass-panel p-6">
             <div className="text-base font-semibold">Devices</div>
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
-              No devices yet. Register a device and complete calibration to
-              begin streaming readings.
-            </div>
+            {devices.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
+                No devices yet. Register a device and complete calibration to
+                begin streaming readings.
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 text-base text-white/70">
+                {devices.slice(0, 3).map((device) => {
+                  const preset = device.location?.startsWith("Simulated · ")
+                    ? device.location.replace("Simulated · ", "")
+                    : "Manual";
+                  return (
+                    <div
+                      key={device.id}
+                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                    >
+                      <div>
+                        <div className="font-semibold text-white">
+                          {device.name}
+                        </div>
+                        <div className="text-sm text-white/60">
+                          {preset} · {aquariumByDevice[device.id] ?? "Unassigned"}
+                        </div>
+                      </div>
+                      <span
+                        className={[
+                          "rounded-full border px-3 py-1 text-sm",
+                          device.is_active
+                            ? "border-emerald-500/40 text-emerald-200"
+                            : "border-white/10 text-white/50",
+                        ].join(" ")}
+                      >
+                        {device.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  );
+                })}
+                {devices.length > 3 ? (
+                  <div className="text-sm text-white/50">
+                    +{devices.length - 3} more devices
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
         </section>
         </main>
