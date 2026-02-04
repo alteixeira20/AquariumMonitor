@@ -29,7 +29,9 @@ type ReadingLog = {
   id: string;
   deviceName: string;
   deviceType: "Simulated" | "Manual";
-  message: string;
+  temperature: string;
+  ph: string;
+  tds: string;
   timestamp: string;
 };
 
@@ -179,7 +181,9 @@ export default function DevicesPage() {
                 id: `${device.id}-${reading.received_at}`,
                 deviceName: device.name,
                 deviceType,
-                message: `Temp ${temp} · pH ${ph} · TDS ${tds}`,
+                temperature: temp,
+                ph,
+                tds,
                 timestamp: new Date(reading.received_at).toLocaleTimeString(),
               };
               return [entry, ...prev].slice(0, 20);
@@ -307,26 +311,37 @@ export default function DevicesPage() {
                 Waiting for device readings…
               </div>
             ) : (
-              <div className="mt-4 grid gap-3">
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70"
-                  >
-                    <div>
-                      <div className="font-semibold text-white">
-                        {log.deviceName}
+              <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+                <div className="grid grid-cols-[1.2fr_0.6fr_0.4fr_0.6fr_0.4fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
+                  <div>Device</div>
+                  <div>Temp</div>
+                  <div>pH</div>
+                  <div>TDS</div>
+                  <div>Time</div>
+                </div>
+                <div className="divide-y divide-white/10">
+                  {logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="grid grid-cols-[1.2fr_0.6fr_0.4fr_0.6fr_0.4fr] items-center px-4 py-3 text-sm text-white/70"
+                    >
+                      <div>
+                        <div className="font-semibold text-white">
+                          {log.deviceName}
+                        </div>
+                        <div className="text-xs uppercase tracking-[0.2em] text-white/50">
+                          {log.deviceType}
+                        </div>
                       </div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-white/50">
-                        {log.deviceType}
+                      <div>{log.temperature}</div>
+                      <div>{log.ph}</div>
+                      <div>{log.tds}</div>
+                      <div className="text-xs text-white/50">
+                        {log.timestamp}
                       </div>
                     </div>
-                    <div className="text-sm text-white/70">
-                      {log.message}
-                    </div>
-                    <div className="text-xs text-white/50">{log.timestamp}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </section>
