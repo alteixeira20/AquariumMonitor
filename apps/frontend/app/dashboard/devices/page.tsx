@@ -8,6 +8,7 @@ import { clearAuthToken, getAuthToken } from "../../../lib/auth";
 import { getMe } from "../../../lib/auth_api";
 import { fetchJson } from "../../../lib/api";
 import { getClientApiBaseUrl } from "../../../lib/config";
+import Select from "../../../components/ui/Select";
 
 type Device = {
   id: string;
@@ -34,6 +35,7 @@ type ReadingLog = {
   tds: string;
   timestamp: string;
 };
+type LogView = "5" | "15" | "30" | "all";
 
 export default function DevicesPage() {
   const router = useRouter();
@@ -53,8 +55,11 @@ export default function DevicesPage() {
   const holdTimers = useRef<Record<string, number>>({});
   const holdIntervals = useRef<Record<string, number>>({});
   const [logs, setLogs] = useState<ReadingLog[]>([]);
+  const [logView, setLogView] = useState<LogView>("5");
+  const [logPage, setLogPage] = useState(1);
+  const [logTotal, setLogTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const lastReadingByDevice = useRef<Record<string, string>>({});
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
 
   useEffect(() => {
     let ignore = false;
@@ -138,20 +143,6 @@ export default function DevicesPage() {
             }
           })
         );
-        const readings = await Promise.all(
-          data.map(async (device) => {
-            try {
-              return await fetchJson<DeviceReading>(
-                `/v1/readings/${device.id}/latest`,
-                { headers: { Authorization: `Bearer ${token}` } },
-                getClientApiBaseUrl()
-              );
-            } catch {
-              return null;
-            }
-          })
-        );
-
         if (!ignore) {
           setDevices(data);
           setAquariumByDevice(mapping);
@@ -168,41 +159,6 @@ export default function DevicesPage() {
               }
             });
             return next;
-          });
-          readings.forEach((reading, idx) => {
-            if (!reading?.received_at) return;
-            const device = data[idx];
-            const lastSeen = lastReadingByDevice.current[device.id];
-            if (lastSeen === reading.received_at) return;
-            lastReadingByDevice.current[device.id] = reading.received_at;
-            const deviceType = device.location?.startsWith("Simulated · ")
-              ? "Simulated"
-              : "Manual";
-            setLogs((prev) => {
-              const temp =
-                reading.temperature_c !== null &&
-                reading.temperature_c !== undefined
-                  ? `${reading.temperature_c.toFixed(1)}°C`
-                  : "—";
-              const ph =
-                reading.ph_value !== null && reading.ph_value !== undefined
-                  ? reading.ph_value.toFixed(1)
-                  : "—";
-              const tds =
-                reading.tds_ppm !== null && reading.tds_ppm !== undefined
-                  ? `${Math.round(reading.tds_ppm)} ppm`
-                  : "—";
-              const entry: ReadingLog = {
-                id: `${device.id}-${reading.received_at}`,
-                deviceName: device.name,
-                deviceType,
-                temperature: temp,
-                ph,
-                tds,
-                timestamp: new Date(reading.received_at).toLocaleTimeString(),
-              };
-              return [entry, ...prev].slice(0, 20);
-            });
           });
         }
       } catch (err) {
@@ -227,6 +183,97 @@ export default function DevicesPage() {
       if (intervalId) window.clearInterval(intervalId);
     };
   }, [isChecking, push]);
+
+  useEffect(() => {
+    let ignore = false;
+    let intervalId: number | undefined;
+
+    async function loadLogs() {
+      const token = getAuthToken();
+      if (!token || devices.length === 0) return;
+      setIsLoadingLogs(true);
+      try {
+        const pageSize =
+          logView === "5" ? 5 : logView === "15" ? 15 : logView === "30" ? 30 : 50;
+        const readingPages = await Promise.all(
+          devices.map(async (device) => {
+            try {
+              const response = await fetchJson<{
+                readings: DeviceReading[];
+                total: number;
+              }>(
+                `/v1/readings/${device.id}/paginated?page=1&page_size=${pageSize}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+              return { device, readings: response.readings, total: response.total };
+            } catch {
+              return { device, readings: [], total: 0 };
+            }
+          })
+        );
+
+        const combined = readingPages.flatMap(({ device, readings }) => {
+          const deviceType = device.location?.startsWith("Simulated · ")
+            ? "Simulated"
+            : "Manual";
+          return readings.map((reading) => {
+            const temp =
+              reading.temperature_c !== null &&
+              reading.temperature_c !== undefined
+                ? `${reading.temperature_c.toFixed(1)}°C`
+                : "—";
+            const ph =
+              reading.ph_value !== null && reading.ph_value !== undefined
+                ? reading.ph_value.toFixed(1)
+                : "—";
+            const tds =
+              reading.tds_ppm !== null && reading.tds_ppm !== undefined
+                ? `${Math.round(reading.tds_ppm)} ppm`
+                : "—";
+            const entry: ReadingLog & { _sort: string } = {
+              id: `${device.id}-${reading.received_at}`,
+              deviceName: device.name,
+              deviceType,
+              temperature: temp,
+              ph,
+              tds,
+              timestamp: new Date(reading.received_at).toLocaleTimeString(),
+              _sort: reading.received_at,
+            };
+            return entry;
+          });
+        });
+
+        const sorted = combined.sort(
+          (a, b) => new Date(b._sort).getTime() - new Date(a._sort).getTime()
+        );
+
+        const totalCount = sorted.length;
+        if (!ignore) setLogTotal(totalCount);
+
+        if (logView === "all") {
+          const start = (logPage - 1) * pageSize;
+          const pageItems = sorted.slice(start, start + pageSize);
+          if (!ignore) setLogs(pageItems);
+        } else {
+          if (!ignore) setLogs(sorted.slice(0, pageSize));
+        }
+      } finally {
+        if (!ignore) setIsLoadingLogs(false);
+      }
+    }
+
+    if (!isChecking) {
+      loadLogs();
+      intervalId = window.setInterval(loadLogs, 10000);
+    }
+
+    return () => {
+      ignore = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [devices, isChecking, logPage, logView]);
 
   if (isChecking) {
     return <div className="min-h-screen bg-ocean-900" />;
@@ -464,9 +511,30 @@ export default function DevicesPage() {
           <section className="glass-panel p-6">
             <div className="flex items-center justify-between">
               <div className="text-base font-semibold">Device logs</div>
-              <div className="text-sm text-white/50">Live readings</div>
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-white/50">Readings</div>
+                <div className="min-w-[140px]">
+                  <Select<LogView>
+                    value={logView}
+                    onChange={(value) => {
+                      setLogView(value);
+                      setLogPage(1);
+                    }}
+                    options={[
+                      { value: "5", label: "Last 5" },
+                      { value: "15", label: "Last 15" },
+                      { value: "30", label: "Last 30" },
+                      { value: "all", label: "All (paged)" },
+                    ]}
+                  />
+                </div>
+              </div>
             </div>
-            {logs.length === 0 ? (
+            {isLoadingLogs ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
+                Loading device readings…
+              </div>
+            ) : logs.length === 0 ? (
               <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
                 Waiting for device readings…
               </div>
@@ -504,6 +572,35 @@ export default function DevicesPage() {
                 </div>
               </div>
             )}
+            {logView === "all" && logTotal > 0 ? (
+              <div className="mt-4 flex items-center justify-between text-sm text-white/60">
+                <div>
+                  Page {logPage} of {Math.max(1, Math.ceil(logTotal / 50))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-ocean-500/40"
+                    onClick={() => setLogPage((p) => Math.max(1, p - 1))}
+                    disabled={logPage === 1}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70 transition hover:border-ocean-500/40"
+                    onClick={() =>
+                      setLogPage((p) =>
+                        Math.min(Math.ceil(logTotal / 50), p + 1)
+                      )
+                    }
+                    disabled={logPage >= Math.ceil(logTotal / 50)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </section>
         </main>
       </div>
