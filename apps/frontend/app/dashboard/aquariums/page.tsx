@@ -187,7 +187,9 @@ export default function AquariumsPage() {
                       received_at: string;
                     }>(
                       `/v1/readings/${device.id}/latest`,
-                      {},
+                      {
+                        headers: { Authorization: `Bearer ${token}` },
+                      },
                       getClientApiBaseUrl()
                     );
                   } catch {
@@ -295,142 +297,159 @@ export default function AquariumsPage() {
               </div>
             ) : (
               <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-                <div className="grid grid-cols-[1.2fr_0.6fr_0.6fr_1fr_0.6fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
-                  <div>Name</div>
-                  <div>Water</div>
-                  <div>Liters</div>
-                  <div>Sensors</div>
-                  <div className="text-right">Actions</div>
-                </div>
-                <div className="divide-y divide-white/10">
-                  {aquariums.map((aquarium) => {
-                    const snapshot = snapshots[aquarium.id];
-                    const progress = holdProgress[aquarium.id] ?? 0;
-                    const isMuted = notificationsMuted[aquarium.id] ?? false;
-                    const sensorConfig = [
-                      {
-                        key: "temperature",
-                        label: "Temp",
-                        enabled: aquarium.temperature_enabled ?? true,
-                        value:
-                          snapshot?.temperature_c !== null &&
-                          snapshot?.temperature_c !== undefined
-                            ? `${snapshot.temperature_c}°C`
-                            : "—",
-                      },
-                      {
-                        key: "ph",
-                        label: "pH",
-                        enabled: aquarium.ph_enabled ?? true,
-                        value:
-                          snapshot?.ph_value !== null &&
-                          snapshot?.ph_value !== undefined
-                            ? `${snapshot.ph_value}`
-                            : "—",
-                      },
-                      {
-                        key: "tds",
-                        label: "TDS",
-                        enabled: aquarium.tds_enabled ?? true,
-                        value:
-                          snapshot?.tds_ppm !== null &&
-                          snapshot?.tds_ppm !== undefined
-                            ? `${snapshot.tds_ppm} ppm`
-                            : "—",
-                      },
-                    ].filter((sensor) => sensor.enabled);
-                    const deviceCount = snapshot?.device_count ?? 0;
-                    return (
+                {(() => {
+                  const showSensorColumns = aquariums.some(
+                    (aq) => (snapshots[aq.id]?.device_count ?? 0) > 0
+                  );
+                  const headerColumns = showSensorColumns
+                    ? "grid grid-cols-[1.1fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.6fr]"
+                    : "grid grid-cols-[1.2fr_0.6fr_0.6fr_1fr_0.6fr]";
+                  const rowColumns = showSensorColumns
+                    ? "grid grid-cols-[1.1fr_0.5fr_0.5fr_0.5fr_0.5fr_0.5fr_0.6fr]"
+                    : "grid grid-cols-[1.1fr_0.5fr_0.5fr_1fr_0.6fr]";
+                  return (
+                    <>
                       <div
-                        key={aquarium.id}
-                        className="grid grid-cols-[1.1fr_0.5fr_0.5fr_1fr_0.6fr] items-center px-4 py-4 text-base text-white/70"
+                        className={`${headerColumns} bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50`}
                       >
-                        <div className="font-semibold text-white">
-                          {aquarium.name}
-                        </div>
-                        <div className="capitalize">{aquarium.water_type}</div>
-                        <div>{aquarium.liters}</div>
-                        <div className="text-white/80">
-                          {deviceCount === 0 ? (
-                            <div className="text-white/40">
-                              No device reporting yet
-                            </div>
-                          ) : sensorConfig.length === 0 ? (
-                            <div className="text-white/40">
-                              No sensors enabled
-                            </div>
-                          ) : (
-                            <div className="flex flex-wrap gap-2">
-                              {sensorConfig.map((sensor) => (
-                                <span
-                                  key={sensor.key}
-                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white/70"
-                                >
-                                  {sensor.label} {sensor.value}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            className={`rounded-full border px-2 py-2 transition ${
-                              isMuted
-                                ? "border-white/10 text-white/30 hover:text-white/40"
-                                : "border-white/10 text-white/70 hover:border-ocean-500/40 hover:text-white"
-                            }`}
-                            aria-label="Toggle notifications"
-                            onClick={() =>
-                              setNotificationsMuted((prev) => ({
-                                ...prev,
-                                [aquarium.id]: !prev[aquarium.id],
-                              }))
-                            }
-                          >
-                            🔔
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-full border border-white/10 px-2 py-2 text-white/70 transition hover:border-ocean-500/40 hover:text-white text-lg"
-                            aria-label="Edit aquarium"
-                            onClick={() =>
-                              router.push(`/dashboard/aquariums/${aquarium.id}/edit`)
-                            }
-                          >
-                            ✎
-                          </button>
-                          <button
-                            type="button"
-                            className={`relative overflow-hidden rounded-full border px-2 py-2 transition ${
-                              deleting[aquarium.id]
-                                ? "border-white/10 text-white/30 cursor-not-allowed"
-                                : "border-white/10 text-white/70 hover:border-red-400/60 hover:text-white"
-                            }`}
-                            aria-label="Delete aquarium (hold)"
-                            onMouseDown={() => startHold(aquarium.id)}
-                            onMouseUp={() => clearHold(aquarium.id)}
-                            onMouseLeave={() => clearHold(aquarium.id)}
-                            onTouchStart={() => startHold(aquarium.id)}
-                            onTouchEnd={() => clearHold(aquarium.id)}
-                            disabled={deleting[aquarium.id]}
-                          >
-                            {progress > 0 ? (
-                              <span
-                                className="absolute inset-0 bg-red-500/35"
-                                style={{
-                                  transform: `scaleX(${progress})`,
-                                  transformOrigin: "left",
-                                }}
-                              />
-                            ) : null}
-                            <span className="relative z-10">🗑</span>
-                          </button>
-                        </div>
+                        <div>Name</div>
+                        <div>Water</div>
+                        <div>Liters</div>
+                        {showSensorColumns ? (
+                          <>
+                            <div>Temp</div>
+                            <div>pH</div>
+                            <div>TDS</div>
+                          </>
+                        ) : (
+                          <div>Sensors</div>
+                        )}
+                        <div className="text-right">Actions</div>
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="divide-y divide-white/10">
+                        {aquariums.map((aquarium) => {
+                          const snapshot = snapshots[aquarium.id];
+                          const progress = holdProgress[aquarium.id] ?? 0;
+                          const isMuted =
+                            notificationsMuted[aquarium.id] ?? false;
+                          const deviceCount = snapshot?.device_count ?? 0;
+                          const tempValue =
+                            snapshot?.temperature_c !== null &&
+                            snapshot?.temperature_c !== undefined
+                              ? `${snapshot.temperature_c}°C`
+                              : "—";
+                          const phValue =
+                            snapshot?.ph_value !== null &&
+                            snapshot?.ph_value !== undefined
+                              ? `${snapshot.ph_value}`
+                              : "—";
+                          const tdsValue =
+                            snapshot?.tds_ppm !== null &&
+                            snapshot?.tds_ppm !== undefined
+                              ? `${snapshot.tds_ppm} ppm`
+                              : "—";
+
+                          return (
+                            <div
+                              key={aquarium.id}
+                              className={`${rowColumns} items-center px-4 py-4 text-base text-white/70`}
+                            >
+                              <div className="font-semibold text-white">
+                                {aquarium.name}
+                              </div>
+                              <div className="capitalize">
+                                {aquarium.water_type}
+                              </div>
+                              <div>{aquarium.liters}</div>
+                              {showSensorColumns ? (
+                                deviceCount === 0 ? (
+                                  <div className="col-span-3 text-white/40">
+                                    No device connected
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="text-white/80">
+                                      {tempValue}
+                                    </div>
+                                    <div className="text-white/80">
+                                      {phValue}
+                                    </div>
+                                    <div className="text-white/80">
+                                      {tdsValue}
+                                    </div>
+                                  </>
+                                )
+                              ) : (
+                                <div className="text-white/80">
+                                  {deviceCount === 0
+                                    ? "No device connected"
+                                    : "Device connected"}
+                                </div>
+                              )}
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  className={`rounded-full border px-2 py-2 transition ${
+                                    isMuted
+                                      ? "border-white/10 text-white/30 hover:text-white/40"
+                                      : "border-white/10 text-white/70 hover:border-ocean-500/40 hover:text-white"
+                                  }`}
+                                  aria-label="Toggle notifications"
+                                  onClick={() =>
+                                    setNotificationsMuted((prev) => ({
+                                      ...prev,
+                                      [aquarium.id]: !prev[aquarium.id],
+                                    }))
+                                  }
+                                >
+                                  🔔
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-full border border-white/10 px-2 py-2 text-white/70 transition hover:border-ocean-500/40 hover:text-white text-lg"
+                                  aria-label="Edit aquarium"
+                                  onClick={() =>
+                                    router.push(
+                                      `/dashboard/aquariums/${aquarium.id}/edit`
+                                    )
+                                  }
+                                >
+                                  ✎
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`relative overflow-hidden rounded-full border px-2 py-2 transition ${
+                                    deleting[aquarium.id]
+                                      ? "border-white/10 text-white/30 cursor-not-allowed"
+                                      : "border-white/10 text-white/70 hover:border-red-400/60 hover:text-white"
+                                  }`}
+                                  aria-label="Delete aquarium (hold)"
+                                  onMouseDown={() => startHold(aquarium.id)}
+                                  onMouseUp={() => clearHold(aquarium.id)}
+                                  onMouseLeave={() => clearHold(aquarium.id)}
+                                  onTouchStart={() => startHold(aquarium.id)}
+                                  onTouchEnd={() => clearHold(aquarium.id)}
+                                  disabled={deleting[aquarium.id]}
+                                >
+                                  {progress > 0 ? (
+                                    <span
+                                      className="absolute inset-0 bg-red-500/35"
+                                      style={{
+                                        transform: `scaleX(${progress})`,
+                                        transformOrigin: "left",
+                                      }}
+                                    />
+                                  ) : null}
+                                  <span className="relative z-10">🗑</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </section>

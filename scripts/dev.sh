@@ -31,7 +31,7 @@ poll_seconds = 3
 [simulator]
 tick_seconds = 5
 seed = 42
-state_path = "./data/sim_state.json"
+state_path = "/tmp/aquariummonitor_sim_state.json"
 queue_path = "../backend/data/sim_queue.jsonl"
 queue_poll_seconds = 2
 EOF
