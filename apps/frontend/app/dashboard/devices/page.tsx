@@ -162,11 +162,24 @@ export default function DevicesPage() {
               ? "Simulated"
               : "Manual";
             setLogs((prev) => {
+              const temp =
+                reading.temperature_c !== null &&
+                reading.temperature_c !== undefined
+                  ? `${reading.temperature_c.toFixed(1)}°C`
+                  : "—";
+              const ph =
+                reading.ph_value !== null && reading.ph_value !== undefined
+                  ? reading.ph_value.toFixed(1)
+                  : "—";
+              const tds =
+                reading.tds_ppm !== null && reading.tds_ppm !== undefined
+                  ? `${Math.round(reading.tds_ppm)} ppm`
+                  : "—";
               const entry: ReadingLog = {
                 id: `${device.id}-${reading.received_at}`,
                 deviceName: device.name,
                 deviceType,
-                message: `${device.name} sent a reading.`,
+                message: `Temp ${temp} · pH ${ph} · TDS ${tds}`,
                 timestamp: new Date(reading.received_at).toLocaleTimeString(),
               };
               return [entry, ...prev].slice(0, 20);
@@ -230,40 +243,6 @@ export default function DevicesPage() {
 
           <section className="glass-panel p-6">
             <div className="flex items-center justify-between">
-              <div className="text-base font-semibold">Device logs</div>
-              <div className="text-sm text-white/50">Live readings</div>
-            </div>
-            {logs.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
-                Waiting for device readings…
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-3">
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70"
-                  >
-                    <div>
-                      <div className="font-semibold text-white">
-                        {log.deviceName}
-                      </div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-white/50">
-                        {log.deviceType}
-                      </div>
-                    </div>
-                    <div className="text-sm text-white/70">
-                      {log.message}
-                    </div>
-                    <div className="text-xs text-white/50">{log.timestamp}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="glass-panel p-6">
-            <div className="flex items-center justify-between">
               <div className="text-base font-semibold">Device list</div>
               <div className="text-sm text-white/50">
                 {isLoading ? "Loading…" : `${devices.length} total`}
@@ -314,6 +293,40 @@ export default function DevicesPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </section>
+
+          <section className="glass-panel p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-semibold">Device logs</div>
+              <div className="text-sm text-white/50">Live readings</div>
+            </div>
+            {logs.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
+                Waiting for device readings…
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70"
+                  >
+                    <div>
+                      <div className="font-semibold text-white">
+                        {log.deviceName}
+                      </div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/50">
+                        {log.deviceType}
+                      </div>
+                    </div>
+                    <div className="text-sm text-white/70">
+                      {log.message}
+                    </div>
+                    <div className="text-xs text-white/50">{log.timestamp}</div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
