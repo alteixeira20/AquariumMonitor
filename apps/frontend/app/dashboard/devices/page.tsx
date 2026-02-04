@@ -16,12 +16,16 @@ type Device = {
   is_active: boolean;
   created_at: string;
 };
+type Aquarium = { id: string; name: string };
 
 export default function DevicesPage() {
   const router = useRouter();
   const { push } = useToast();
   const [isChecking, setIsChecking] = useState(true);
   const [devices, setDevices] = useState<Device[]>([]);
+  const [aquariumByDevice, setAquariumByDevice] = useState<
+    Record<string, string>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -56,6 +60,35 @@ export default function DevicesPage() {
       if (!token) return;
       setIsLoading(true);
       try {
+        const aquariums = await fetchJson<Aquarium[]>(
+          "/v1/aquariums",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+          getClientApiBaseUrl()
+        );
+        const attachments = await Promise.all(
+          aquariums.map(async (aq) => {
+            try {
+              const devicesForAquarium = await fetchJson<Array<{ id: string }>>(
+                `/v1/aquariums/${aq.id}/devices`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+              return devicesForAquarium.map((device) => ({
+                deviceId: device.id,
+                aquariumName: aq.name,
+              }));
+            } catch {
+              return [];
+            }
+          })
+        );
+        const mapping: Record<string, string> = {};
+        attachments.flat().forEach((item) => {
+          mapping[item.deviceId] = item.aquariumName;
+        });
+
         const data = await fetchJson<Device[]>(
           "/v1/devices/owned",
           {
@@ -63,10 +96,14 @@ export default function DevicesPage() {
           },
           getClientApiBaseUrl()
         );
-        if (!ignore) setDevices(data);
+        if (!ignore) {
+          setDevices(data);
+          setAquariumByDevice(mapping);
+        }
       } catch (err) {
         if (!ignore) {
           setDevices([]);
+          setAquariumByDevice({});
           push("Failed to load devices.", "error");
         }
       } finally {
@@ -127,35 +164,42 @@ export default function DevicesPage() {
               </div>
             ) : (
               <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-                <div className="grid grid-cols-[1.2fr_1fr_0.6fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
+                <div className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.5fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
                   <div>Name</div>
-                  <div>Location</div>
+                  <div>Preset</div>
+                  <div>Aquarium</div>
                   <div>Status</div>
                 </div>
                 <div className="divide-y divide-white/10">
-                  {devices.map((device) => (
-                    <div
-                      key={device.id}
-                      className="grid grid-cols-[1.2fr_1fr_0.6fr] items-center px-4 py-4 text-base text-white/70"
-                    >
-                      <div className="font-semibold text-white">
-                        {device.name}
+                  {devices.map((device) => {
+                    const preset = device.location?.startsWith("Simulated · ")
+                      ? device.location.replace("Simulated · ", "")
+                      : "Manual";
+                    return (
+                      <div
+                        key={device.id}
+                        className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.5fr] items-center px-4 py-4 text-base text-white/70"
+                      >
+                        <div className="font-semibold text-white">
+                          {device.name}
+                        </div>
+                        <div>{preset}</div>
+                        <div>{aquariumByDevice[device.id] ?? "—"}</div>
+                        <div>
+                          <span
+                            className={[
+                              "rounded-full border px-3 py-1 text-sm",
+                              device.is_active
+                                ? "border-emerald-500/40 text-emerald-200"
+                                : "border-white/10 text-white/50",
+                            ].join(" ")}
+                          >
+                            {device.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
                       </div>
-                      <div>{device.location ?? "—"}</div>
-                      <div>
-                        <span
-                          className={[
-                            "rounded-full border px-3 py-1 text-sm",
-                            device.is_active
-                              ? "border-emerald-500/40 text-emerald-200"
-                              : "border-white/10 text-white/50",
-                          ].join(" ")}
-                        >
-                          {device.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
