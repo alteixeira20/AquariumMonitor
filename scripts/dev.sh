@@ -19,8 +19,23 @@ make -C apps/frontend dev &
 pids+=("$!")
 
 if [[ ! -f apps/simulator/config.toml ]]; then
-  cp apps/simulator/config.example.toml apps/simulator/config.toml
-  echo "Created apps/simulator/config.toml from example for dev."
+  cat <<'EOF' > apps/simulator/config.toml
+[backend]
+base_url = "http://localhost:8000"
+owner_email = ""
+owner_password = ""
+wait_for_setup = true
+auto_setup = false
+poll_seconds = 3
+
+[simulator]
+tick_seconds = 5
+seed = 42
+state_path = "./data/sim_state.json"
+queue_path = "../backend/data/sim_queue.jsonl"
+queue_poll_seconds = 2
+EOF
+  echo "Created apps/simulator/config.toml for UI-driven simulations."
 fi
 
 if [[ ! -d apps/simulator/.venv ]]; then
