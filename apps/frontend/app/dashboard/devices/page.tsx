@@ -202,6 +202,7 @@ export default function DevicesPage() {
               : logView === "30"
                 ? 30
                 : logPageSize;
+        const pageParam = logView === "all" ? logPage : 1;
         const readingPages = await Promise.all(
           devices.map(async (device) => {
             try {
@@ -209,7 +210,7 @@ export default function DevicesPage() {
                 readings: DeviceReading[];
                 total: number;
               }>(
-                `/v1/readings/${device.id}/paginated?page=1&page_size=${pageSize}`,
+                `/v1/readings/${device.id}/paginated?page=${pageParam}&page_size=${pageSize}`,
                 { headers: { Authorization: `Bearer ${token}` } },
                 getClientApiBaseUrl()
               );
@@ -256,13 +257,11 @@ export default function DevicesPage() {
           (a, b) => new Date(b._sort).getTime() - new Date(a._sort).getTime()
         );
 
-        const totalCount = sorted.length;
+        const totalCount = readingPages.reduce((sum, item) => sum + item.total, 0);
         if (!ignore) setLogTotal(totalCount);
 
         if (logView === "all") {
-          const start = (logPage - 1) * pageSize;
-          const pageItems = sorted.slice(start, start + pageSize);
-          if (!ignore) setLogs(pageItems);
+          if (!ignore) setLogs(sorted.slice(0, pageSize));
         } else {
           if (!ignore) setLogs(sorted.slice(0, pageSize));
         }
