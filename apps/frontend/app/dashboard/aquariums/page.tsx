@@ -378,9 +378,17 @@ export default function AquariumsPage() {
                               key={aquarium.id}
                               className={`${rowColumns} items-center px-4 py-4 text-base text-white/70`}
                             >
-                              <div className="font-semibold text-white">
+                              <button
+                                type="button"
+                                className="text-left font-semibold text-white transition hover:text-ocean-300"
+                                onClick={() =>
+                                  router.push(
+                                    `/dashboard/aquariums/${aquarium.id}`
+                                  )
+                                }
+                              >
                                 {aquarium.name}
-                              </div>
+                              </button>
                               <div className="capitalize">
                                 {aquarium.water_type}
                               </div>
