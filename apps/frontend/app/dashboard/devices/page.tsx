@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopNav from "../../../components/dashboard/TopNav";
 import { useToast } from "../../../components/ui/ToastProvider";
@@ -18,6 +18,20 @@ type Device = {
 };
 type Aquarium = { id: string; name: string };
 type DeviceStatus = { device_id: string; status: "online" | "offline" };
+type DeviceReading = {
+  device_id: string;
+  received_at: string;
+  temperature_c: number;
+  ph_value: number;
+  tds_ppm: number;
+};
+type ReadingLog = {
+  id: string;
+  deviceName: string;
+  deviceType: "Simulated" | "Manual";
+  message: string;
+  timestamp: string;
+};
 
 export default function DevicesPage() {
   const router = useRouter();
@@ -30,7 +44,9 @@ export default function DevicesPage() {
   const [statusByDevice, setStatusByDevice] = useState<
     Record<string, "online" | "offline">
   >({});
+  const [logs, setLogs] = useState<ReadingLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const lastReadingByDevice = useRef<Record<string, string>>({});
 
   useEffect(() => {
     let ignore = false;
@@ -58,6 +74,7 @@ export default function DevicesPage() {
 
   useEffect(() => {
     let ignore = false;
+    let intervalId: number | undefined;
 
     async function loadDevices() {
       const token = getAuthToken();
@@ -113,6 +130,20 @@ export default function DevicesPage() {
             }
           })
         );
+        const readings = await Promise.all(
+          data.map(async (device) => {
+            try {
+              return await fetchJson<DeviceReading>(
+                `/v1/readings/${device.id}/latest`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+            } catch {
+              return null;
+            }
+          })
+        );
+
         if (!ignore) {
           setDevices(data);
           setAquariumByDevice(mapping);
@@ -121,6 +152,26 @@ export default function DevicesPage() {
               statuses.map((status) => [status.device_id, status.status])
             )
           );
+          readings.forEach((reading, idx) => {
+            if (!reading?.received_at) return;
+            const device = data[idx];
+            const lastSeen = lastReadingByDevice.current[device.id];
+            if (lastSeen === reading.received_at) return;
+            lastReadingByDevice.current[device.id] = reading.received_at;
+            const deviceType = device.location?.startsWith("Simulated · ")
+              ? "Simulated"
+              : "Manual";
+            setLogs((prev) => {
+              const entry: ReadingLog = {
+                id: `${device.id}-${reading.received_at}`,
+                deviceName: device.name,
+                deviceType,
+                message: `${device.name} sent a reading.`,
+                timestamp: new Date(reading.received_at).toLocaleTimeString(),
+              };
+              return [entry, ...prev].slice(0, 20);
+            });
+          });
         }
       } catch (err) {
         if (!ignore) {
@@ -134,10 +185,14 @@ export default function DevicesPage() {
       }
     }
 
-    if (!isChecking) loadDevices();
+    if (!isChecking) {
+      loadDevices();
+      intervalId = window.setInterval(loadDevices, 10000);
+    }
 
     return () => {
       ignore = true;
+      if (intervalId) window.clearInterval(intervalId);
     };
   }, [isChecking, push]);
 
@@ -171,6 +226,40 @@ export default function DevicesPage() {
             >
               Register device
             </button>
+          </section>
+
+          <section className="glass-panel p-6">
+            <div className="flex items-center justify-between">
+              <div className="text-base font-semibold">Device logs</div>
+              <div className="text-sm text-white/50">Live readings</div>
+            </div>
+            {logs.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
+                Waiting for device readings…
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70"
+                  >
+                    <div>
+                      <div className="font-semibold text-white">
+                        {log.deviceName}
+                      </div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/50">
+                        {log.deviceType}
+                      </div>
+                    </div>
+                    <div className="text-sm text-white/70">
+                      {log.message}
+                    </div>
+                    <div className="text-xs text-white/50">{log.timestamp}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <section className="glass-panel p-6">

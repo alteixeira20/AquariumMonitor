@@ -787,7 +787,12 @@ def emit_loop(
                 "raw_ph_voltage": round(_clamp(voltage_ph, 0.0, PH_VREF), 3),
                 "raw_tds_voltage": round(_clamp(voltage_tds, 0.0, TDS_VREF), 3),
             }
-            client.post_reading(device_state.device_id, device_state.api_key, payload)
+            try:
+                client.post_reading(device_state.device_id, device_state.api_key, payload)
+            except httpx.HTTPError as exc:
+                print(
+                    f"Reading post failed for {device_state.device_id}: {exc}"
+                )
 
         tick += 1
         time.sleep(cfg.simulator.tick_seconds)
