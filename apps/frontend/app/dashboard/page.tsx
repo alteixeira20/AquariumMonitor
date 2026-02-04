@@ -30,6 +30,7 @@ export default function DashboardPage() {
     tds_ppm: number | null;
     received_at: string | null;
   } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [isLoadingAquariums, setIsLoadingAquariums] = useState(true);
   const [isLoadingDevices, setIsLoadingDevices] = useState(true);
   const [isLoadingLatest, setIsLoadingLatest] = useState(true);
@@ -221,6 +222,22 @@ export default function DashboardPage() {
     };
   }, [activeAquariumId, isChecking]);
 
+  useEffect(() => {
+    if (!latestReading?.received_at) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [latestReading?.received_at]);
+
+  const liveLabel = latestReading?.received_at
+    ? (() => {
+        const diffMs = now - new Date(latestReading.received_at).getTime();
+        const seconds = Math.max(0, Math.floor(diffMs / 1000));
+        if (seconds < 60) return `Updated ${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        return `Updated ${minutes}m ago`;
+      })()
+    : "Waiting for data";
+
   if (isChecking) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-6 py-12">
@@ -283,6 +300,17 @@ export default function DashboardPage() {
                     ? "Not yet added"
                     : activeAquarium?.name ?? "Aquarium"}
                 </div>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
+                <span
+                  className={[
+                    "h-2 w-2 rounded-full",
+                    latestReading?.received_at
+                      ? "bg-emerald-400 shadow-glow"
+                      : "bg-yellow-300",
+                  ].join(" ")}
+                />
+                {liveLabel}
               </div>
 
               {aquariums.length > 1 ? (

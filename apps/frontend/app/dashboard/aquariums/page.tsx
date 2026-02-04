@@ -137,7 +137,6 @@ export default function AquariumsPage() {
 
   useEffect(() => {
     let ignore = false;
-    let intervalId: number | undefined;
 
     async function loadAquariums() {
       const token = getAuthToken();
@@ -154,8 +153,32 @@ export default function AquariumsPage() {
         if (ignore) return;
         setAquariums(data);
 
+      } catch (err) {
+        if (!ignore) setAquariums([]);
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    }
+
+    if (!isChecking) {
+      loadAquariums();
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [isChecking]);
+
+  useEffect(() => {
+    let ignore = false;
+    let intervalId: number | undefined;
+
+    async function loadSnapshots() {
+      const token = getAuthToken();
+      if (!token || aquariums.length === 0) return;
+      try {
         const snapshotEntries = await Promise.all(
-          data.map(async (aquarium) => {
+          aquariums.map(async (aquarium) => {
             try {
               const devices = await fetchJson<Array<{ id: string }>>(
                 `/v1/aquariums/${aquarium.id}/devices`,
@@ -237,23 +260,21 @@ export default function AquariumsPage() {
         if (!ignore) {
           setSnapshots(Object.fromEntries(snapshotEntries));
         }
-      } catch (err) {
-        if (!ignore) setAquariums([]);
-      } finally {
-        if (!ignore) setIsLoading(false);
+      } catch {
+        if (!ignore) setSnapshots({});
       }
     }
 
-    if (!isChecking) {
-      loadAquariums();
-      intervalId = window.setInterval(loadAquariums, 10000);
+    if (!isChecking && aquariums.length > 0) {
+      loadSnapshots();
+      intervalId = window.setInterval(loadSnapshots, 10000);
     }
 
     return () => {
       ignore = true;
       if (intervalId) window.clearInterval(intervalId);
     };
-  }, [isChecking]);
+  }, [aquariums, isChecking]);
 
   if (isChecking) {
     return <div className="min-h-screen bg-ocean-900" />;
