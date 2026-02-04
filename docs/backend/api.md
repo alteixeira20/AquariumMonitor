@@ -78,3 +78,15 @@ Reading payload:
 - `GET /readiness` — storage readiness.
 - `GET /metrics` — lightweight internal counters.
 - `GET /metrics/prometheus` — Prometheus exposition.
+
+## Simulator
+- `POST /simulator/devices` — enqueue a simulated device stream.
+
+Request body:
+```json
+{
+  "device_id": "uuid",
+  "aquarium_id": "uuid",
+  "preset_id": "reef-drift"
+}
+```

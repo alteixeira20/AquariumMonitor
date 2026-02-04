@@ -133,6 +133,14 @@ class Settings(BaseSettings):
     backup_retention_days: int = Field(default=7, alias="BACKUP_RETENTION_DAYS")
     backup_interval_hours: int = Field(default=6, alias="BACKUP_INTERVAL_HOURS")
 
+    # -------------------------------------------------------------------------
+    # Simulator queue (optional)
+    # -------------------------------------------------------------------------
+    sim_queue_path: str = Field(
+        default="data/sim_queue.jsonl",
+        alias="SIM_QUEUE_PATH",
+    )
+
     @property
     def cors_origins_list(self) -> list[str]:
         """

@@ -8,6 +8,7 @@ from app.api.v1.events import router as events_router
 from app.api.v1.health import router as health_router
 from app.api.v1.login import router as login_router
 from app.api.v1.me import router as me_router
+from app.api.v1.simulator import router as simulator_router
 from app.api.v1.setup import router as setup_router
 from app.api.v1.readings import router as readings_router
 from app.core.auth import jwt_dependency
@@ -21,6 +22,12 @@ api_router.include_router(login_router, prefix="/v1", tags=["auth"])
 api_router.include_router(setup_router, prefix="/v1", tags=["auth"])
 api_router.include_router(me_router, prefix="/v1", tags=["auth"])
 api_router.include_router(events_router, prefix="/v1", tags=["events"])
+api_router.include_router(
+    simulator_router,
+    prefix="/v1/simulator",
+    tags=["simulator"],
+    dependencies=[Depends(jwt_dependency)],
+)
 api_router.include_router(
     aquariums_router,
     prefix="/v1/aquariums",
