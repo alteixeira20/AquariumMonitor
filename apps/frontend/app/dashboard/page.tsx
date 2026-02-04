@@ -299,27 +299,28 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <span>Temperature</span>
                 <span className="text-white/80">
-                  {latestReading?.temperature_c ?? "—"}
                   {latestReading?.temperature_c !== null &&
                   latestReading?.temperature_c !== undefined
-                    ? "°C"
-                    : ""}
+                    ? `${latestReading.temperature_c.toFixed(1)}°C`
+                    : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>pH</span>
                 <span className="text-white/80">
-                  {latestReading?.ph_value ?? "—"}
+                  {latestReading?.ph_value !== null &&
+                  latestReading?.ph_value !== undefined
+                    ? latestReading.ph_value.toFixed(1)
+                    : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>TDS</span>
                 <span className="text-white/80">
-                  {latestReading?.tds_ppm ?? "—"}
                   {latestReading?.tds_ppm !== null &&
                   latestReading?.tds_ppm !== undefined
-                    ? " ppm"
-                    : ""}
+                    ? `${Math.round(latestReading.tds_ppm)} ppm`
+                    : "—"}
                 </span>
               </div>
               <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/50">

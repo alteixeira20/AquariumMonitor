@@ -336,17 +336,17 @@ export default function AquariumsPage() {
                           const tempValue =
                             snapshot?.temperature_c !== null &&
                             snapshot?.temperature_c !== undefined
-                              ? `${snapshot.temperature_c}°C`
+                              ? `${snapshot.temperature_c.toFixed(1)}°C`
                               : "—";
                           const phValue =
                             snapshot?.ph_value !== null &&
                             snapshot?.ph_value !== undefined
-                              ? `${snapshot.ph_value}`
+                              ? snapshot.ph_value.toFixed(1)
                               : "—";
                           const tdsValue =
                             snapshot?.tds_ppm !== null &&
                             snapshot?.tds_ppm !== undefined
-                              ? `${snapshot.tds_ppm} ppm`
+                              ? `${Math.round(snapshot.tds_ppm)} ppm`
                               : "—";
 
                           return (
