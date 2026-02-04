@@ -376,6 +376,24 @@ def ensure_setup(client: ApiClient, cfg: BackendConfig) -> None:
         time.sleep(cfg.poll_seconds)
 
 
+def login_with_retry(client: ApiClient, cfg: BackendConfig) -> None:
+    while True:
+        try:
+            client.login(cfg.owner_email, cfg.owner_password)
+            return
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                print(
+                    "Simulator login failed (401). Update SIM_OWNER_EMAIL/SIM_OWNER_PASSWORD "
+                    "to match the setup credentials, then retrying..."
+                )
+                time.sleep(cfg.poll_seconds)
+                continue
+            raise
+        except httpx.RequestError:
+            time.sleep(cfg.poll_seconds)
+
+
 def _find_by_name(items: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
     for item in items:
         if item.get("name") == name:
@@ -758,7 +776,7 @@ def main() -> None:
     client = ApiClient(cfg.backend.base_url)
     client.wait_for_ready(cfg.backend.poll_seconds)
     ensure_setup(client, cfg.backend)
-    client.login(cfg.backend.owner_email, cfg.backend.owner_password)
+    login_with_retry(client, cfg.backend)
 
     device_states = provision(client, cfg, state)
     load_active_devices(client, cfg, state, device_states)
