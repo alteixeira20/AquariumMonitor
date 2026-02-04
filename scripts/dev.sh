@@ -18,4 +18,15 @@ pids+=("$!")
 make -C apps/frontend dev &
 pids+=("$!")
 
+if [[ ! -f apps/simulator/config.toml ]]; then
+  cp apps/simulator/config.example.toml apps/simulator/config.toml
+  echo "Created apps/simulator/config.toml from example for dev."
+fi
+
+(
+  cd apps/simulator
+  SIM_CONFIG=./config.toml python3 main.py
+) &
+pids+=("$!")
+
 wait "${pids[@]}"
