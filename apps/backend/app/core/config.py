@@ -140,6 +140,9 @@ class Settings(BaseSettings):
         default="data/sim_queue.jsonl",
         alias="SIM_QUEUE_PATH",
     )
+    sim_ph4_voltage: float = Field(default=3.0, alias="SIM_PH4_VOLTAGE")
+    sim_ph7_voltage: float = Field(default=2.5, alias="SIM_PH7_VOLTAGE")
+    sim_ph9_voltage: float = Field(default=2.0, alias="SIM_PH9_VOLTAGE")
 
     @property
     def cors_origins_list(self) -> list[str]:

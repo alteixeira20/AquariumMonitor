@@ -81,6 +81,7 @@ Reading payload:
 
 ## Simulator
 - `POST /simulator/devices` — enqueue a simulated device stream.
+  - Creates calibration points, issues a device API key, and attaches the device before enqueueing.
 
 Request body:
 ```json
