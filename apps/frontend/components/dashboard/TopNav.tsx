@@ -9,7 +9,7 @@ export default function TopNav() {
   const links = [
     { label: "Overview", href: "/dashboard" },
     { label: "Aquariums", href: "/dashboard/aquariums" },
-    { label: "Devices", href: "/dashboard/devices", disabled: true },
+    { label: "Devices", href: "/dashboard/devices" },
     { label: "Alerts", href: "/dashboard/alerts", disabled: true },
     { label: "Settings", href: "/dashboard/settings", disabled: true },
   ];

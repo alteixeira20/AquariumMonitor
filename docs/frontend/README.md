@@ -1,11 +1,13 @@
 # Frontend overview
 
-The frontend is a Next.js (App Router) dashboard built with TypeScript and Tailwind. It currently focuses on the first‑run setup flow so the visual language is established before the dashboard grows.
+The frontend is a Next.js (App Router) dashboard built with TypeScript and Tailwind. It includes the setup wizard, auth flow, and the initial dashboard experience.
 
 Current scope:
 - Setup flow UI (storage selection, backup policy, owner account)
 - Setup API wiring (`/v1/setup/status`, `/v1/setup`) with validation and progress UI
-- Login screen for `/v1/login` and a placeholder dashboard route
+- Login screen for `/v1/login` and auth‑gated dashboard routes
+- Dashboard shell with overview, aquariums, and devices
+- Aquarium create/edit/delete flows
 - Shared help modal component for context and onboarding
 - Ocean‑palette theme aligned with the product identity
 
