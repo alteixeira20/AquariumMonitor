@@ -55,8 +55,10 @@ make simulator-up
 ```
 
 The simulator stores state in `SIM_STATE_PATH` so it can reuse device IDs and API keys across restarts.
-If login fails (401), the simulator keeps retrying. Ensure `SIM_OWNER_EMAIL` and
-`SIM_OWNER_PASSWORD` match the setup credentials.
+
+If you run the simulator in queue-only mode (UI-triggered devices), you do not need
+owner credentials. If credentials are provided, the simulator can also provision the
+static aquariums/devices from the TOML config.
 
 ## UI-driven simulated devices
 The UI can enqueue simulated devices through the backend:

@@ -31,6 +31,10 @@ POST /v1/simulator/devices
 ```
 This appends a JSONL record into the simulator queue. The simulator watches the queue and begins streaming readings for that device.
 
+If you only use UI-triggered simulations, owner credentials are optional. Provide
+`backend.owner_email` / `backend.owner_password` only if you want the simulator to
+provision aquariums and devices from the TOML config.
+
 ## Run locally
 ```
 SIM_CONFIG=./config.toml python main.py

@@ -217,12 +217,6 @@ def load_config(path: Path) -> AppConfig:
         aquariums=aquariums,
     )
 
-    if not cfg.backend.owner_email or not cfg.backend.owner_password:
-        raise SystemExit("Owner email/password not configured for simulator.")
-
-    if not cfg.aquariums:
-        raise SystemExit("No aquariums defined in simulator config.")
-
     return cfg
 
 
@@ -414,6 +408,26 @@ def _aquarium_from_response(payload: dict[str, Any]) -> AquariumConfig:
         tds_max=float(payload["tds_max"]),
         devices=[],
     )
+
+
+def _aquarium_from_queue(payload: dict[str, Any]) -> AquariumConfig | None:
+    if not payload:
+        return None
+    try:
+        return AquariumConfig(
+            name=payload["name"],
+            water_type=payload["water_type"],
+            liters=float(payload["liters"]),
+            temperature_min=float(payload["temperature_min"]),
+            temperature_max=float(payload["temperature_max"]),
+            ph_min=float(payload["ph_min"]),
+            ph_max=float(payload["ph_max"]),
+            tds_min=float(payload["tds_min"]),
+            tds_max=float(payload["tds_max"]),
+            devices=[],
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _calibration_points(cfg: CalibrationConfig) -> dict[float, float]:
@@ -715,12 +729,26 @@ def consume_queue(
         device_id = str(payload.get("device_id", "")).strip()
         aquarium_id = str(payload.get("aquarium_id", "")).strip()
         preset_id = str(payload.get("preset_id", "")).strip()
+        api_key = payload.get("api_key")
+        aquarium_payload = payload.get("aquarium")
         if not device_id or not aquarium_id:
             continue
         if device_id in device_states:
             continue
 
         pattern = PRESET_TO_PATTERN.get(preset_id, "all_three_mix")
+        aquarium_cfg = _aquarium_from_queue(aquarium_payload)
+        if api_key and aquarium_cfg is not None:
+            device_states[device_id] = DeviceState(
+                device_id=device_id,
+                api_key=str(api_key),
+                pattern=pattern,
+                aquarium=aquarium_cfg,
+            )
+            state.set_device_by_id(device_id, str(api_key))
+            state.add_active_device(device_id, aquarium_id, pattern)
+            continue
+
         try:
             _ensure_device_state(
                 client, cfg, state, device_states, aquarium_id, device_id, pattern
@@ -775,11 +803,14 @@ def main() -> None:
 
     client = ApiClient(cfg.backend.base_url)
     client.wait_for_ready(cfg.backend.poll_seconds)
-    ensure_setup(client, cfg.backend)
-    login_with_retry(client, cfg.backend)
+    device_states: dict[str, DeviceState] = {}
 
-    device_states = provision(client, cfg, state)
-    load_active_devices(client, cfg, state, device_states)
+    if cfg.backend.owner_email and cfg.backend.owner_password:
+        ensure_setup(client, cfg.backend)
+        login_with_retry(client, cfg.backend)
+        device_states = provision(client, cfg, state)
+        load_active_devices(client, cfg, state, device_states)
+
     emit_loop(client, cfg, state, device_states)
 
 
