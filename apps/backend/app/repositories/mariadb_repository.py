@@ -167,6 +167,31 @@ class MariaDbDeviceRepository(DeviceRepository):
                 for m in models
             ]
 
+    async def delete(self, device_id: UUID) -> None:
+        async with self._session_factory() as session:
+            await session.execute(
+                delete(ReadingModel).where(ReadingModel.device_id == str(device_id))
+            )
+            await session.execute(
+                delete(DeviceApiKeyModel).where(
+                    DeviceApiKeyModel.device_id == str(device_id)
+                )
+            )
+            await session.execute(
+                delete(DevicePhCalibrationModel).where(
+                    DevicePhCalibrationModel.device_id == str(device_id)
+                )
+            )
+            await session.execute(
+                delete(AquariumDeviceModel).where(
+                    AquariumDeviceModel.device_id == str(device_id)
+                )
+            )
+            await session.execute(
+                delete(DeviceModel).where(DeviceModel.id == str(device_id))
+            )
+            await session.commit()
+
 
 class MariaDbReadingRepository(ReadingRepository):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:

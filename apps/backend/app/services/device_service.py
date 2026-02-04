@@ -87,3 +87,11 @@ class DeviceService:
             device.mark_inactive()
             await self.repository.update(device)
         return device
+
+    async def delete_device(self, device_id: UUID, user_id: UUID) -> None:
+        device = await self.repository.get(device_id)
+        if device is None:
+            raise ValueError("Device not found")
+        if device.owner_user_id != user_id:
+            raise DomainError("Device not owned by user", status_code=403, error="forbidden")
+        await self.repository.delete(device_id)

@@ -32,6 +32,9 @@ class DeviceRepository(ABC):
     @abstractmethod
     async def list_for_owner(self, owner_user_id: UUID) -> list[Device]: ...
 
+    @abstractmethod
+    async def delete(self, device_id: UUID) -> None: ...
+
 
 class ReadingRepository(ABC):
     @abstractmethod

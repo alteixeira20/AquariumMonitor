@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -124,6 +124,18 @@ async def get_device(
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     return DeviceResponse.from_domain(device)
+
+
+@router.delete("/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_device(
+    device_id: UUID,
+    service: ServiceDep,
+    ctx: WriteAccessDep,
+) -> None:
+    try:
+        await service.delete_device(device_id, ctx.user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/{device_id}/claim", response_model=DeviceResponse, status_code=200)

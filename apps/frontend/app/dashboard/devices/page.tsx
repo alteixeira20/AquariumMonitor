@@ -46,9 +46,12 @@ export default function DevicesPage() {
   const [statusByDevice, setStatusByDevice] = useState<
     Record<string, "online" | "offline">
   >({});
-  const [simEnabledByDevice, setSimEnabledByDevice] = useState<
+  const [simPausedByDevice, setSimPausedByDevice] = useState<
     Record<string, boolean>
   >({});
+  const [holdProgress, setHoldProgress] = useState<Record<string, number>>({});
+  const holdTimers = useRef<Record<string, number>>({});
+  const holdIntervals = useRef<Record<string, number>>({});
   const [logs, setLogs] = useState<ReadingLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const lastReadingByDevice = useRef<Record<string, string>>({});
@@ -157,11 +160,11 @@ export default function DevicesPage() {
               statuses.map((status) => [status.device_id, status.status])
             )
           );
-          setSimEnabledByDevice((prev) => {
+          setSimPausedByDevice((prev) => {
             const next = { ...prev };
             data.forEach((device) => {
               if (device.location?.startsWith("Simulated · ")) {
-                if (next[device.id] === undefined) next[device.id] = true;
+                if (next[device.id] === undefined) next[device.id] = false;
               }
             });
             return next;
@@ -229,6 +232,77 @@ export default function DevicesPage() {
     return <div className="min-h-screen bg-ocean-900" />;
   }
 
+  function clearHold(id: string) {
+    const timers = holdTimers.current;
+    const intervals = holdIntervals.current;
+    if (timers[id]) {
+      window.clearTimeout(timers[id]);
+      delete timers[id];
+    }
+    if (intervals[id]) {
+      window.clearInterval(intervals[id]);
+      delete intervals[id];
+    }
+    setHoldProgress((prev) => ({ ...prev, [id]: 0 }));
+  }
+
+  function startHold(id: string) {
+    if (holdTimers.current[id]) return;
+    const start = Date.now();
+    holdIntervals.current[id] = window.setInterval(() => {
+      const elapsed = Date.now() - start;
+      const progress = Math.min(elapsed / 2500, 1);
+      setHoldProgress((prev) => ({ ...prev, [id]: progress }));
+    }, 100);
+    holdTimers.current[id] = window.setTimeout(() => {
+      clearHold(id);
+      handleDelete(id);
+    }, 2500);
+  }
+
+  async function handleDelete(id: string) {
+    const token = getAuthToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${getClientApiBaseUrl()}/v1/devices/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Failed to delete device.");
+      }
+      setDevices((prev) => prev.filter((device) => device.id !== id));
+      setStatusByDevice((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setAquariumByDevice((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setSimPausedByDevice((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setLogs((prev) => prev.filter((log) => !log.id.startsWith(id)));
+      push("Device deleted.", "error");
+    } catch {
+      push("Failed to delete device.", "error");
+    }
+  }
+
   return (
     <div className="pb-16">
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-6 pt-12">
@@ -271,30 +345,31 @@ export default function DevicesPage() {
               </div>
             ) : (
               <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-                <div className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.5fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
+                <div className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.6fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
                   <div>Name</div>
                   <div>Preset</div>
                   <div>Aquarium</div>
                   <div>Status</div>
-                  <div className="text-right">Device</div>
+                  <div className="text-right">Actions</div>
                 </div>
                 <div className="divide-y divide-white/10">
-                {devices.map((device) => {
-                  const preset = device.location?.startsWith("Simulated · ")
-                    ? device.location.replace("Simulated · ", "")
-                    : "Manual";
-                  const status = statusByDevice[device.id] ?? "offline";
-                  const isSimulated = device.location?.startsWith("Simulated · ");
-                  const isEnabled = simEnabledByDevice[device.id] ?? true;
-                  return (
-                    <div
-                      key={device.id}
-                      className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.5fr] items-center px-4 py-4 text-base text-white/70"
-                    >
-                      <div className="font-semibold text-white">
-                        {device.name}
-                      </div>
-                      <div>{preset}</div>
+                  {devices.map((device) => {
+                    const preset = device.location?.startsWith("Simulated · ")
+                      ? device.location.replace("Simulated · ", "")
+                      : "Manual";
+                    const status = statusByDevice[device.id] ?? "offline";
+                    const isSimulated = device.location?.startsWith("Simulated · ");
+                    const isPaused = simPausedByDevice[device.id] ?? false;
+                    const progress = holdProgress[device.id] ?? 0;
+                    return (
+                      <div
+                        key={device.id}
+                        className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.6fr] items-center px-4 py-4 text-base text-white/70"
+                      >
+                        <div className="font-semibold text-white">
+                          {device.name}
+                        </div>
+                        <div>{preset}</div>
                       <div>{aquariumByDevice[device.id] ?? "—"}</div>
                       <div>
                           <span
@@ -308,58 +383,79 @@ export default function DevicesPage() {
                             {status === "online" ? "Online" : "Offline"}
                           </span>
                         </div>
-                      <div className="flex justify-end">
-                        {isSimulated ? (
+                        <div className="flex items-center justify-end gap-2">
+                          {isSimulated ? (
+                            <button
+                              type="button"
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                                isPaused
+                                  ? "border-red-400/40 text-red-200"
+                                  : "border-emerald-500/40 text-emerald-200"
+                              }`}
+                              onClick={async () => {
+                                const token = getAuthToken();
+                                if (!token) {
+                                  router.replace("/login");
+                                  return;
+                                }
+                                const nextPaused = !isPaused;
+                                setSimPausedByDevice((prev) => ({
+                                  ...prev,
+                                  [device.id]: nextPaused,
+                                }));
+                                try {
+                                  const response = await fetch(
+                                    `${getClientApiBaseUrl()}/v1/simulator/devices/${device.id}/state`,
+                                    {
+                                      method: "POST",
+                                      headers: {
+                                        "Content-Type": "application/json",
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                      body: JSON.stringify({
+                                        enabled: !nextPaused,
+                                      }),
+                                    }
+                                  );
+                                  if (!response.ok) {
+                                    throw new Error("Failed to update device state.");
+                                  }
+                                } catch {
+                                  setSimPausedByDevice((prev) => ({
+                                    ...prev,
+                                    [device.id]: isPaused,
+                                  }));
+                                }
+                              }}
+                            >
+                              {isPaused ? "Paused" : "Pause"}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
-                            className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
-                              isEnabled
-                                ? "border-emerald-500/40 text-emerald-200"
-                                : "border-red-400/40 text-red-200"
-                            }`}
-                            onClick={async () => {
-                              const token = getAuthToken();
-                              if (!token) {
-                                router.replace("/login");
-                                return;
-                              }
-                              const nextEnabled = !isEnabled;
-                              setSimEnabledByDevice((prev) => ({
-                                ...prev,
-                                [device.id]: nextEnabled,
-                              }));
-                              try {
-                                const response = await fetch(
-                                  `${getClientApiBaseUrl()}/v1/simulator/devices/${device.id}/state`,
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                    body: JSON.stringify({ enabled: nextEnabled }),
-                                  }
-                                );
-                                if (!response.ok) {
-                                  throw new Error("Failed to update device state.");
-                                }
-                              } catch {
-                                setSimEnabledByDevice((prev) => ({
-                                  ...prev,
-                                  [device.id]: isEnabled,
-                                }));
-                              }
-                            }}
+                            className="relative overflow-hidden rounded-full border border-white/10 px-2 py-2 text-white/70 transition hover:border-red-400/60 hover:text-white"
+                            aria-label="Delete device (hold)"
+                            onMouseDown={() => startHold(device.id)}
+                            onMouseUp={() => clearHold(device.id)}
+                            onMouseLeave={() => clearHold(device.id)}
+                            onTouchStart={() => startHold(device.id)}
+                            onTouchEnd={() => clearHold(device.id)}
                           >
-                            {isEnabled ? "On" : "Off"}
+                            {progress > 0 ? (
+                              <span
+                                className="absolute inset-0 bg-red-500/35"
+                                style={{
+                                  transform: `scaleX(${progress})`,
+                                  transformOrigin: "left",
+                                }}
+                              />
+                            ) : null}
+                            <span className="relative z-10">🗑</span>
                           </button>
-                        ) : (
-                          <span className="text-xs text-white/40">—</span>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               </div>
             )}

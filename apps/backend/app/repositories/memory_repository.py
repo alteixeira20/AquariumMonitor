@@ -48,6 +48,9 @@ class MemoryDeviceRepository(DeviceRepository):
     async def list_for_owner(self, owner_user_id: UUID) -> list[Device]:
         return [d for d in self._devices.values() if d.owner_user_id == owner_user_id]
 
+    async def delete(self, device_id: UUID) -> None:
+        self._devices.pop(device_id, None)
+
 
 class MemoryReadingRepository(ReadingRepository):
     def __init__(self) -> None:

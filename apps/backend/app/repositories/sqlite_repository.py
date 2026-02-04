@@ -694,6 +694,25 @@ class SqliteDeviceRepository(DeviceRepository):
         await cursor.close()
         return [_row_to_device(r) for r in rows]
 
+    async def delete(self, device_id: UUID) -> None:
+        device_id_str = str(device_id)
+        await self._conn.execute(
+            "DELETE FROM readings WHERE device_id = ?", (device_id_str,)
+        )
+        await self._conn.execute(
+            "DELETE FROM device_api_keys WHERE device_id = ?", (device_id_str,)
+        )
+        await self._conn.execute(
+            "DELETE FROM device_ph_calibrations WHERE device_id = ?", (device_id_str,)
+        )
+        await self._conn.execute(
+            "DELETE FROM aquarium_devices WHERE device_id = ?", (device_id_str,)
+        )
+        await self._conn.execute(
+            "DELETE FROM devices WHERE id = ?", (device_id_str,)
+        )
+        await self._conn.commit()
+
 
 class SqliteReadingRepository(ReadingRepository):
     def __init__(self, conn: aiosqlite.Connection) -> None:

@@ -39,6 +39,7 @@ Notes:
 - `GET /devices` — list devices attached to your aquariums.
 - `GET /devices/owned` — list devices you own (including unattached).
 - `GET /devices/{device_id}` — get device.
+- `DELETE /devices/{device_id}` — delete device.
 - `POST /devices/{device_id}/claim` — claim an unowned device.
 - `POST /devices/{device_id}/api-keys` — generate device API key.
 - `POST /devices/{device_id}/api-keys/revoke` — revoke device API key.
