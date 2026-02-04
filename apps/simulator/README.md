@@ -21,7 +21,15 @@ Key options:
 - `simulator.tick_seconds`
 - `simulator.seed`
 - `simulator.state_path`
+- `simulator.queue_path` / `simulator.queue_poll_seconds`
 - `aquariums` and `devices` with patterns
+
+## UI-triggered simulations
+The backend exposes:
+```
+POST /v1/simulator/devices
+```
+This appends a JSONL record into the simulator queue. The simulator watches the queue and begins streaming readings for that device.
 
 ## Run locally
 ```

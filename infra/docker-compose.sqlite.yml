@@ -31,8 +31,10 @@ services:
       - ../apps/simulator/.env
     environment:
       SIM_BACKEND_URL: http://aquariummonitor_backend:8000
+      SIM_QUEUE_PATH: /queue/sim_queue.jsonl
     volumes:
       - ../apps/simulator/data:/data
+      - ../apps/backend/data:/queue
     depends_on:
       aquariummonitor_backend:
         condition: service_healthy

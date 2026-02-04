@@ -16,6 +16,19 @@ PH_POINTS = (4.01, 6.86, 9.18)
 TDS_VREF = 2.3
 PH_VREF = 5.0
 
+PRESET_TO_PATTERN = {
+    "reef-drift": "all_three_mix",
+    "fresh-sunrise": "temp_daily_cycle",
+    "nano-stable": "temp_ph_mix",
+    "salt-pulse": "tds_rise",
+    "planted-cycle": "ph_drift_down",
+    "cichlid-rush": "ph_drift_up",
+    "brackish-tide": "tds_rise",
+    "tropical-rain": "temp_spike",
+    "desert-oasis": "temp_daily_cycle",
+    "stress-test": "all_three_mix",
+}
+
 
 @dataclass
 class BackendConfig:
@@ -32,6 +45,8 @@ class SimulatorConfig:
     tick_seconds: int
     seed: int
     state_path: Path
+    queue_path: Path
+    queue_poll_seconds: int
 
 
 @dataclass
@@ -74,6 +89,7 @@ class DeviceState:
     device_id: str
     api_key: str
     pattern: str
+    aquarium: AquariumConfig
     phase: float = 0.0
     drift: float = 0.0
     event_until: float = 0.0
@@ -82,7 +98,13 @@ class DeviceState:
 class SimulatorState:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self.data: dict[str, Any] = {"aquariums": {}, "devices": {}}
+        self.data: dict[str, Any] = {
+            "aquariums": {},
+            "devices": {},
+            "device_ids": {},
+            "active_devices": [],
+            "queue_offset": 0,
+        }
         self._load()
 
     def _load(self) -> None:
@@ -109,6 +131,40 @@ class SimulatorState:
             "id": device_id,
             "api_key": api_key,
         }
+        self.save()
+
+    def get_device_by_id(self, device_id: str) -> dict[str, str] | None:
+        return self.data.get("device_ids", {}).get(device_id)
+
+    def set_device_by_id(self, device_id: str, api_key: str) -> None:
+        self.data.setdefault("device_ids", {})[device_id] = {
+            "api_key": api_key,
+        }
+        self.save()
+
+    def get_queue_offset(self) -> int:
+        return int(self.data.get("queue_offset", 0) or 0)
+
+    def set_queue_offset(self, offset: int) -> None:
+        self.data["queue_offset"] = offset
+        self.save()
+
+    def get_active_devices(self) -> list[dict[str, Any]]:
+        return list(self.data.get("active_devices", []))
+
+    def add_active_device(
+        self, device_id: str, aquarium_id: str, pattern: str
+    ) -> None:
+        active = self.data.setdefault("active_devices", [])
+        if any(item.get("device_id") == device_id for item in active):
+            return
+        active.append(
+            {
+                "device_id": device_id,
+                "aquarium_id": aquarium_id,
+                "pattern": pattern,
+            }
+        )
         self.save()
 
 
@@ -145,6 +201,12 @@ def load_config(path: Path) -> AppConfig:
             seed=int(os.getenv("SIM_SEED", simulator.get("seed", 42))),
             state_path=Path(
                 os.getenv("SIM_STATE_PATH", simulator.get("state_path", "./data/sim_state.json"))
+            ),
+            queue_path=Path(
+                os.getenv("SIM_QUEUE_PATH", simulator.get("queue_path", "./data/sim_queue.jsonl"))
+            ),
+            queue_poll_seconds=int(
+                os.getenv("SIM_QUEUE_POLL_SECONDS", simulator.get("queue_poll_seconds", 2))
             ),
         ),
         calibration=CalibrationConfig(
@@ -239,6 +301,20 @@ class ApiClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_aquarium(self, aquarium_id: str) -> dict[str, Any]:
+        resp = self.client.get(
+            f"{self.base_url}/v1/aquariums/{aquarium_id}", headers=self._headers()
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_device(self, device_id: str) -> dict[str, Any]:
+        resp = self.client.get(
+            f"{self.base_url}/v1/devices/{device_id}", headers=self._headers()
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def get_calibration(self, device_id: str) -> list[dict[str, Any]]:
         resp = self.client.get(
             f"{self.base_url}/v1/devices/{device_id}/calibration",
@@ -305,6 +381,21 @@ def _find_by_name(items: list[dict[str, Any]], name: str) -> dict[str, Any] | No
         if item.get("name") == name:
             return item
     return None
+
+
+def _aquarium_from_response(payload: dict[str, Any]) -> AquariumConfig:
+    return AquariumConfig(
+        name=payload["name"],
+        water_type=payload["water_type"],
+        liters=float(payload["liters"]),
+        temperature_min=float(payload["temperature_min"]),
+        temperature_max=float(payload["temperature_max"]),
+        ph_min=float(payload["ph_min"]),
+        ph_max=float(payload["ph_max"]),
+        tds_min=float(payload["tds_min"]),
+        tds_max=float(payload["tds_max"]),
+        devices=[],
+    )
 
 
 def _calibration_points(cfg: CalibrationConfig) -> dict[float, float]:
@@ -502,42 +593,155 @@ def provision(client: ApiClient, cfg: AppConfig, state: SimulatorState) -> dict[
                 api_key = key_resp["api_key"]
                 state.set_device(device_cfg.name, device_id, api_key)
 
-            device_states[device_cfg.name] = DeviceState(
+            device_states[device_id] = DeviceState(
                 device_id=device_id,
                 api_key=api_key,
                 pattern=device_cfg.pattern,
+                aquarium=aquarium_cfg,
             )
 
     return device_states
 
 
+def _ensure_device_state(
+    client: ApiClient,
+    cfg: AppConfig,
+    state: SimulatorState,
+    device_states: dict[str, DeviceState],
+    aquarium_id: str,
+    device_id: str,
+    pattern: str,
+) -> None:
+    if device_id in device_states:
+        return
+
+    aquarium_payload = client.get_aquarium(aquarium_id)
+    aquarium_cfg = _aquarium_from_response(aquarium_payload)
+
+    client.get_device(device_id)
+
+    points = client.get_calibration(device_id)
+    if not _is_calibrated(points):
+        calibration = _calibration_points(cfg.calibration)
+        client.start_calibration(device_id)
+        for ph_point, voltage in calibration.items():
+            client.add_calibration_point(device_id, ph_point, voltage)
+        client.activate_calibration(device_id)
+
+    client.attach_device(aquarium_id, device_id)
+
+    cached = state.get_device_by_id(device_id)
+    if cached and cached.get("api_key"):
+        api_key = cached["api_key"]
+    else:
+        key_resp = client.create_device_key(device_id)
+        api_key = key_resp["api_key"]
+        state.set_device_by_id(device_id, api_key)
+
+    device_states[device_id] = DeviceState(
+        device_id=device_id,
+        api_key=api_key,
+        pattern=pattern,
+        aquarium=aquarium_cfg,
+    )
+
+
+def load_active_devices(
+    client: ApiClient,
+    cfg: AppConfig,
+    state: SimulatorState,
+    device_states: dict[str, DeviceState],
+) -> None:
+    for item in state.get_active_devices():
+        device_id = str(item.get("device_id", "")).strip()
+        aquarium_id = str(item.get("aquarium_id", "")).strip()
+        pattern = str(item.get("pattern", "all_three_mix")).strip()
+        if not device_id or not aquarium_id:
+            continue
+        try:
+            _ensure_device_state(
+                client, cfg, state, device_states, aquarium_id, device_id, pattern
+            )
+        except Exception:
+            continue
+
+
+def consume_queue(
+    client: ApiClient,
+    cfg: AppConfig,
+    state: SimulatorState,
+    device_states: dict[str, DeviceState],
+) -> None:
+    queue_path = cfg.simulator.queue_path
+    if not queue_path.exists():
+        return
+
+    offset = state.get_queue_offset()
+    with queue_path.open("r", encoding="utf-8") as handle:
+        handle.seek(offset)
+        lines = handle.readlines()
+        new_offset = handle.tell()
+
+    if new_offset != offset:
+        state.set_queue_offset(new_offset)
+
+    for line in lines:
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+
+        device_id = str(payload.get("device_id", "")).strip()
+        aquarium_id = str(payload.get("aquarium_id", "")).strip()
+        preset_id = str(payload.get("preset_id", "")).strip()
+        if not device_id or not aquarium_id:
+            continue
+        if device_id in device_states:
+            continue
+
+        pattern = PRESET_TO_PATTERN.get(preset_id, "all_three_mix")
+        try:
+            _ensure_device_state(
+                client, cfg, state, device_states, aquarium_id, device_id, pattern
+            )
+            state.add_active_device(device_id, aquarium_id, pattern)
+        except Exception:
+            continue
+
+
 def emit_loop(
     client: ApiClient,
     cfg: AppConfig,
+    state: SimulatorState,
     device_states: dict[str, DeviceState],
 ) -> None:
     rand = random.Random(cfg.simulator.seed)
     calibration = _calibration_points(cfg.calibration)
     tick = 0
-
-    aquarium_lookup = {aq.name: aq for aq in cfg.aquariums}
+    last_queue_check = 0.0
 
     while True:
-        for aquarium in cfg.aquariums:
-            for device_cfg in aquarium.devices:
-                state = device_states[device_cfg.name]
-                temp, ph, tds = _pattern_values(
-                    state.pattern, state, tick, aquarium, rand
-                )
-                voltage_ph = _ph_to_voltage(ph, calibration)
-                voltage_tds = _voltage_for_tds(temp, tds)
+        now = time.time()
+        if now - last_queue_check >= cfg.simulator.queue_poll_seconds:
+            consume_queue(client, cfg, state, device_states)
+            last_queue_check = now
 
-                payload = {
-                    "temperature_c": round(temp, 2),
-                    "raw_ph_voltage": round(_clamp(voltage_ph, 0.0, PH_VREF), 3),
-                    "raw_tds_voltage": round(_clamp(voltage_tds, 0.0, TDS_VREF), 3),
-                }
-                client.post_reading(state.device_id, state.api_key, payload)
+        for state in device_states.values():
+            temp, ph, tds = _pattern_values(
+                state.pattern, state, tick, state.aquarium, rand
+            )
+            voltage_ph = _ph_to_voltage(ph, calibration)
+            voltage_tds = _voltage_for_tds(temp, tds)
+
+            payload = {
+                "temperature_c": round(temp, 2),
+                "raw_ph_voltage": round(_clamp(voltage_ph, 0.0, PH_VREF), 3),
+                "raw_tds_voltage": round(_clamp(voltage_tds, 0.0, TDS_VREF), 3),
+            }
+            client.post_reading(state.device_id, state.api_key, payload)
 
         tick += 1
         time.sleep(cfg.simulator.tick_seconds)
@@ -557,7 +761,8 @@ def main() -> None:
     client.login(cfg.backend.owner_email, cfg.backend.owner_password)
 
     device_states = provision(client, cfg, state)
-    emit_loop(client, cfg, device_states)
+    load_active_devices(client, cfg, state, device_states)
+    emit_loop(client, cfg, state, device_states)
 
 
 if __name__ == "__main__":

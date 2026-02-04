@@ -22,6 +22,7 @@ Key fields:
 - `simulator.tick_seconds`
 - `simulator.seed`
 - `simulator.state_path`
+- `simulator.queue_path` / `simulator.queue_poll_seconds`
 - `aquariums` and `devices`
 
 ## Patterns
@@ -50,6 +51,19 @@ make simulator-up
 ```
 
 The simulator stores state in `SIM_STATE_PATH` so it can reuse device IDs and API keys across restarts.
+
+## UI-driven simulated devices
+The UI can enqueue simulated devices through the backend:
+```
+POST /v1/simulator/devices
+```
+
+The backend appends the request to the simulator queue (`SIM_QUEUE_PATH`). The simulator watches that queue and starts streaming readings for the device using the preset pattern.
+
+Queue entries are JSONL (one JSON object per line) with:
+- `device_id`
+- `aquarium_id`
+- `preset_id`
 
 ## End‑to‑end demo checklist
 1) Start backend:
