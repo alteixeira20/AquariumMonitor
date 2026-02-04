@@ -343,19 +343,6 @@ export default function DeviceRegisterPage() {
                           },
                           getClientApiBaseUrl()
                         );
-                        const attachResponse = await fetch(
-                          `${getClientApiBaseUrl()}/v1/aquariums/${selectedAquarium}/devices/${response.id}`,
-                          {
-                            method: "POST",
-                            headers: {
-                              Authorization: `Bearer ${token}`,
-                            },
-                          }
-                        );
-                        if (!attachResponse.ok) {
-                          const message = await attachResponse.text();
-                          throw new Error(message || "Failed to attach device.");
-                        }
                         const queueResponse = await fetch(
                           `${getClientApiBaseUrl()}/v1/simulator/devices`,
                           {
