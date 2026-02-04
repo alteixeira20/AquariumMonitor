@@ -46,6 +46,9 @@ export default function DevicesPage() {
   const [statusByDevice, setStatusByDevice] = useState<
     Record<string, "online" | "offline">
   >({});
+  const [simEnabledByDevice, setSimEnabledByDevice] = useState<
+    Record<string, boolean>
+  >({});
   const [logs, setLogs] = useState<ReadingLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const lastReadingByDevice = useRef<Record<string, string>>({});
@@ -154,6 +157,15 @@ export default function DevicesPage() {
               statuses.map((status) => [status.device_id, status.status])
             )
           );
+          setSimEnabledByDevice((prev) => {
+            const next = { ...prev };
+            data.forEach((device) => {
+              if (device.location?.startsWith("Simulated · ")) {
+                if (next[device.id] === undefined) next[device.id] = true;
+              }
+            });
+            return next;
+          });
           readings.forEach((reading, idx) => {
             if (!reading?.received_at) return;
             const device = data[idx];
@@ -259,29 +271,32 @@ export default function DevicesPage() {
               </div>
             ) : (
               <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
-                <div className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.5fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
+                <div className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.5fr] bg-white/5 px-4 py-3 text-sm uppercase tracking-[0.2em] text-white/50">
                   <div>Name</div>
                   <div>Preset</div>
                   <div>Aquarium</div>
                   <div>Status</div>
+                  <div className="text-right">Device</div>
                 </div>
                 <div className="divide-y divide-white/10">
-                  {devices.map((device) => {
-                    const preset = device.location?.startsWith("Simulated · ")
-                      ? device.location.replace("Simulated · ", "")
-                      : "Manual";
-                    const status = statusByDevice[device.id] ?? "offline";
-                    return (
-                      <div
-                        key={device.id}
-                        className="grid grid-cols-[1.2fr_0.9fr_0.9fr_0.5fr] items-center px-4 py-4 text-base text-white/70"
-                      >
-                        <div className="font-semibold text-white">
-                          {device.name}
-                        </div>
-                        <div>{preset}</div>
-                        <div>{aquariumByDevice[device.id] ?? "—"}</div>
-                        <div>
+                {devices.map((device) => {
+                  const preset = device.location?.startsWith("Simulated · ")
+                    ? device.location.replace("Simulated · ", "")
+                    : "Manual";
+                  const status = statusByDevice[device.id] ?? "offline";
+                  const isSimulated = device.location?.startsWith("Simulated · ");
+                  const isEnabled = simEnabledByDevice[device.id] ?? true;
+                  return (
+                    <div
+                      key={device.id}
+                      className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.5fr_0.5fr] items-center px-4 py-4 text-base text-white/70"
+                    >
+                      <div className="font-semibold text-white">
+                        {device.name}
+                      </div>
+                      <div>{preset}</div>
+                      <div>{aquariumByDevice[device.id] ?? "—"}</div>
+                      <div>
                           <span
                             className={[
                               "rounded-full border px-3 py-1 text-sm",
@@ -293,9 +308,58 @@ export default function DevicesPage() {
                             {status === "online" ? "Online" : "Offline"}
                           </span>
                         </div>
+                      <div className="flex justify-end">
+                        {isSimulated ? (
+                          <button
+                            type="button"
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] transition ${
+                              isEnabled
+                                ? "border-emerald-500/40 text-emerald-200"
+                                : "border-red-400/40 text-red-200"
+                            }`}
+                            onClick={async () => {
+                              const token = getAuthToken();
+                              if (!token) {
+                                router.replace("/login");
+                                return;
+                              }
+                              const nextEnabled = !isEnabled;
+                              setSimEnabledByDevice((prev) => ({
+                                ...prev,
+                                [device.id]: nextEnabled,
+                              }));
+                              try {
+                                const response = await fetch(
+                                  `${getClientApiBaseUrl()}/v1/simulator/devices/${device.id}/state`,
+                                  {
+                                    method: "POST",
+                                    headers: {
+                                      "Content-Type": "application/json",
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ enabled: nextEnabled }),
+                                  }
+                                );
+                                if (!response.ok) {
+                                  throw new Error("Failed to update device state.");
+                                }
+                              } catch {
+                                setSimEnabledByDevice((prev) => ({
+                                  ...prev,
+                                  [device.id]: isEnabled,
+                                }));
+                              }
+                            }}
+                          >
+                            {isEnabled ? "On" : "Off"}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-white/40">—</span>
+                        )}
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
                 </div>
               </div>
             )}

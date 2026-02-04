@@ -6,12 +6,16 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
+from uuid import UUID
 
 from app.api.deps import require_service
 from app.core.auth import UserContext, require_write_access
 from app.core.config import get_settings
 from app.core.exceptions import DomainError
-from app.schemas.simulator_schema import SimulatorDeviceRequest
+from app.schemas.simulator_schema import (
+    SimulatorDeviceRequest,
+    SimulatorDeviceStateRequest,
+)
 from app.services.aquarium_device_service import AquariumDeviceService
 from app.services.aquarium_service import AquariumService
 from app.services.device_api_key_service import DeviceApiKeyService
@@ -114,6 +118,35 @@ async def enqueue_simulated_device(
             "tds_min": aquarium.tds_min,
             "tds_max": aquarium.tds_max,
         },
+        "requested_by": str(ctx.user_id),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    with queue_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record))
+        handle.write("\n")
+
+    return {"status": "queued"}
+
+
+@router.post("/devices/{device_id}/state", status_code=status.HTTP_202_ACCEPTED)
+async def set_simulated_device_state(
+    device_id: str,
+    payload: SimulatorDeviceStateRequest,
+    ctx: WriteAccessDep,
+    device_service: DeviceServiceDep,
+) -> dict[str, str]:
+    settings = get_settings()
+    queue_path = Path(settings.sim_queue_path)
+    queue_path.parent.mkdir(parents=True, exist_ok=True)
+
+    device = await device_service.get_device(UUID(device_id))
+    if device is None or device.owner_user_id != ctx.user_id:
+        raise DomainError("Device not found", status_code=404, error="not_found")
+
+    record = {
+        "device_id": str(device_id),
+        "action": "resume" if payload.enabled else "pause",
         "requested_by": str(ctx.user_id),
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

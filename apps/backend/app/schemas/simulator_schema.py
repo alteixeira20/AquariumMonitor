@@ -9,3 +9,7 @@ class SimulatorDeviceRequest(BaseModel):
     device_id: UUID = Field(..., description="Device to simulate")
     aquarium_id: UUID = Field(..., description="Aquarium to attach device to")
     preset_id: str = Field(..., description="Simulation preset identifier")
+
+
+class SimulatorDeviceStateRequest(BaseModel):
+    enabled: bool = Field(..., description="Whether the simulated device is enabled")

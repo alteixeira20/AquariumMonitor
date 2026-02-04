@@ -103,6 +103,7 @@ class SimulatorState:
             "devices": {},
             "device_ids": {},
             "active_devices": [],
+            "paused_devices": [],
             "queue_offset": 0,
         }
         self._load()
@@ -165,6 +166,18 @@ class SimulatorState:
                 "pattern": pattern,
             }
         )
+        self.save()
+
+    def is_paused(self, device_id: str) -> bool:
+        return device_id in set(self.data.get("paused_devices", []))
+
+    def set_paused(self, device_id: str, paused: bool) -> None:
+        paused_set = set(self.data.get("paused_devices", []))
+        if paused:
+            paused_set.add(device_id)
+        else:
+            paused_set.discard(device_id)
+        self.data["paused_devices"] = list(paused_set)
         self.save()
 
 
@@ -731,9 +744,16 @@ def consume_queue(
         preset_id = str(payload.get("preset_id", "")).strip()
         api_key = payload.get("api_key")
         aquarium_payload = payload.get("aquarium")
+        action = str(payload.get("action", "")).strip().lower()
         if not device_id or not aquarium_id:
+            if device_id and action in {"pause", "resume"}:
+                state.set_paused(device_id, action == "pause")
             continue
         if device_id in device_states:
+            continue
+
+        if action in {"pause", "resume"}:
+            state.set_paused(device_id, action == "pause")
             continue
 
         pattern = PRESET_TO_PATTERN.get(preset_id, "all_three_mix")
@@ -776,6 +796,8 @@ def emit_loop(
             last_queue_check = now
 
         for device_state in device_states.values():
+            if state.is_paused(device_state.device_id):
+                continue
             temp, ph, tds = _pattern_values(
                 device_state.pattern, device_state, tick, device_state.aquarium, rand
             )
