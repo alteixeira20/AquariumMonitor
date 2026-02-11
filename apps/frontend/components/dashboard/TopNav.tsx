@@ -10,7 +10,7 @@ export default function TopNav() {
     { label: "Overview", href: "/dashboard" },
     { label: "Aquariums", href: "/dashboard/aquariums" },
     { label: "Devices", href: "/dashboard/devices" },
-    { label: "Alerts", href: "/dashboard/alerts", disabled: true },
+    { label: "Alerts", href: "/dashboard/alerts" },
     { label: "Settings", href: "/dashboard/settings", disabled: true },
   ];
 

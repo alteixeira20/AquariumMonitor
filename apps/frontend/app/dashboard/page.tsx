@@ -5,20 +5,61 @@ import { useRouter } from "next/navigation";
 import { clearAuthToken, getAuthToken } from "../../lib/auth";
 import { getMe } from "../../lib/auth_api";
 import TopNav from "../../components/dashboard/TopNav";
+import StatusBadge from "../../components/ui/StatusBadge";
 import Select from "../../components/ui/Select";
 import { fetchJson } from "../../lib/api";
 import { getClientApiBaseUrl } from "../../lib/config";
+
+function sensorLevel(
+  value: number | null | undefined,
+  min: number | undefined,
+  max: number | undefined
+) {
+  if (value === null || value === undefined || min === undefined || max === undefined) {
+    return 0;
+  }
+  const range = max - min || 1;
+  if (value < min || value > max) {
+    const delta = value < min ? min - value : value - max;
+    const percent = delta / range;
+    return percent > 0.10 ? 3 : 2;
+  }
+  const distance = Math.min(value - min, max - value);
+  const closeness = 1 - distance / range;
+  return closeness >= 0.75 ? 1 : 0;
+}
+
+function levelLabel(level: number) {
+  if (level >= 3) return { label: "Critical", tone: "error" as const };
+  if (level === 2) return { label: "Alert", tone: "waiting" as const };
+  if (level === 1) return { label: "Warning", tone: "waiting" as const };
+  return { label: "Healthy", tone: "success" as const };
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
   const [aquariums, setAquariums] = useState<
-    Array<{ id: string; name: string; water_type: string; liters: number }>
+    Array<{
+      id: string;
+      name: string;
+      water_type: string;
+      liters: number;
+      temperature_min: number;
+      temperature_max: number;
+      ph_min: number;
+      ph_max: number;
+      tds_min: number;
+      tds_max: number;
+    }>
   >([]);
   const [devices, setDevices] = useState<
     Array<{ id: string; name: string; location: string | null; is_active: boolean }>
   >([]);
-  const [aquariumByDevice, setAquariumByDevice] = useState<
+  const [aquariumByDevice, setAquariumByDevice] = useState<Record<string, string>>(
+    {}
+  );
+  const [aquariumIdByDevice, setAquariumIdByDevice] = useState<
     Record<string, string>
   >({});
   const [activeAquariumId, setActiveAquariumId] = useState("");
@@ -34,6 +75,18 @@ export default function DashboardPage() {
   const [isLoadingAquariums, setIsLoadingAquariums] = useState(true);
   const [isLoadingDevices, setIsLoadingDevices] = useState(true);
   const [isLoadingLatest, setIsLoadingLatest] = useState(true);
+  const [latestByAquarium, setLatestByAquarium] = useState<
+    Record<
+      string,
+      | {
+          temperature_c: number;
+          ph_value: number;
+          tds_ppm: number;
+          received_at: string | null;
+        }
+      | null
+    >
+  >({});
 
   useEffect(() => {
     let ignore = false;
@@ -69,7 +122,18 @@ export default function DashboardPage() {
       setIsLoadingDevices(true);
       try {
         const aquariumsData = await fetchJson<
-          Array<{ id: string; name: string; water_type: string; liters: number }>
+          Array<{
+            id: string;
+            name: string;
+            water_type: string;
+            liters: number;
+            temperature_min: number;
+            temperature_max: number;
+            ph_min: number;
+            ph_max: number;
+            tds_min: number;
+            tds_max: number;
+          }>
         >(
           "/v1/aquariums",
           {
@@ -105,15 +169,18 @@ export default function DashboardPage() {
         );
 
         const deviceMap: Record<string, string> = {};
+        const deviceIdMap: Record<string, string> = {};
         let tracked = 0;
         attachments.forEach((item) => {
           if (item.deviceIds.length > 0) tracked += 1;
           item.deviceIds.forEach((deviceId) => {
             deviceMap[deviceId] = item.aquariumName;
+            deviceIdMap[deviceId] = item.aquariumId;
           });
         });
         setTrackedCount(tracked);
         setAquariumByDevice(deviceMap);
+        setAquariumIdByDevice(deviceIdMap);
 
         const devicesData = await fetchJson<
           Array<{ id: string; name: string; location: string | null; is_active: boolean }>
@@ -128,12 +195,84 @@ export default function DashboardPage() {
         );
         if (ignore) return;
         setDevices(devicesData);
+
+        const latestByAqEntries = await Promise.all(
+          aquariumsData.map(async (aq) => {
+            try {
+              const devicesForAquarium = await fetchJson<Array<{ id: string }>>(
+                `/v1/aquariums/${aq.id}/devices`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                getClientApiBaseUrl()
+              );
+              if (!devicesForAquarium.length) {
+                return [aq.id, null] as const;
+              }
+              const readings = await Promise.all(
+                devicesForAquarium.map(async (device) => {
+                  try {
+                    return await fetchJson<{
+                      temperature_c: number;
+                      ph_value: number;
+                      tds_ppm: number;
+                      received_at: string | null;
+                    }>(
+                      `/v1/readings/${device.id}/latest`,
+                      { headers: { Authorization: `Bearer ${token}` } },
+                      getClientApiBaseUrl()
+                    );
+                  } catch {
+                    return null;
+                  }
+                })
+              );
+              const temps = readings
+                .map((reading) => reading?.temperature_c)
+                .filter((value): value is number => value !== null && value !== undefined);
+              const phs = readings
+                .map((reading) => reading?.ph_value)
+                .filter((value): value is number => value !== null && value !== undefined);
+              const tds = readings
+                .map((reading) => reading?.tds_ppm)
+                .filter((value): value is number => value !== null && value !== undefined);
+              if (!temps.length || !phs.length || !tds.length) {
+                return [aq.id, null] as const;
+              }
+              const median = (values: number[]) => {
+                const sorted = [...values].sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                return sorted.length % 2 === 0
+                  ? (sorted[mid - 1] + sorted[mid]) / 2
+                  : sorted[mid];
+              };
+              const latestReceivedAt = readings
+                .map((reading) => reading?.received_at)
+                .filter((value): value is string => Boolean(value))
+                .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+              return [
+                aq.id,
+                {
+                  temperature_c: median(temps),
+                  ph_value: median(phs),
+                  tds_ppm: median(tds),
+                  received_at: latestReceivedAt ?? null,
+                },
+              ] as const;
+            } catch {
+              return [aq.id, null] as const;
+            }
+          })
+        );
+        if (!ignore) {
+          setLatestByAquarium(Object.fromEntries(latestByAqEntries));
+        }
       } catch (err) {
         if (!ignore) {
           setAquariums([]);
           setDevices([]);
           setTrackedCount(0);
           setAquariumByDevice({});
+          setAquariumIdByDevice({});
+          setLatestByAquarium({});
         }
       } finally {
         if (!ignore) {
@@ -388,8 +527,8 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-          <div className="glass-panel p-6">
+        <section className="grid gap-6">
+          <div className="glass-panel p-6 max-w-4xl mx-auto">
             <div className="text-base font-semibold">Aquariums</div>
             {aquariums.length === 0 ? (
               <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
@@ -399,66 +538,43 @@ export default function DashboardPage() {
             ) : (
               <div className="mt-4 grid gap-3 text-base text-white/70">
                 {aquariums.slice(0, 3).map((aq) => (
-                  <div
+                  <button
                     key={aq.id}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
+                    type="button"
+                    onClick={() => router.push(`/dashboard/aquariums/${aq.id}`)}
+                    className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:border-ocean-500/40 hover:bg-white/8"
                   >
-                    <div className="font-semibold text-white">{aq.name}</div>
-                    <div className="text-sm text-white/60">
-                      {aq.water_type} · {aq.liters} L
+                    <div>
+                      <div className="font-semibold text-white">{aq.name}</div>
+                      <div className="text-xs uppercase tracking-[0.2em] text-white/40">
+                        {aq.water_type} · {aq.liters} L
+                      </div>
                     </div>
-                  </div>
+                    {(() => {
+                      const latest = latestByAquarium[aq.id];
+                      if (!latest) {
+                        return <StatusBadge label="No data" tone="info" />;
+                      }
+                      const stale =
+                        !latest.received_at ||
+                        Date.now() - new Date(latest.received_at).getTime() > 5 * 60 * 1000;
+                      if (stale) {
+                        return <StatusBadge label="Critical" tone="error" />;
+                      }
+                      const levels = [
+                        sensorLevel(latest.temperature_c, aq.temperature_min, aq.temperature_max),
+                        sensorLevel(latest.ph_value, aq.ph_min, aq.ph_max),
+                        sensorLevel(latest.tds_ppm, aq.tds_min, aq.tds_max),
+                      ];
+                      const level = Math.max(...levels);
+                      const status = levelLabel(level);
+                      return <StatusBadge label={status.label} tone={status.tone} />;
+                    })()}
+                  </button>
                 ))}
                 {aquariums.length > 3 ? (
                   <div className="text-sm text-white/50">
                     +{aquariums.length - 3} more aquariums
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-          <div className="glass-panel p-6">
-            <div className="text-base font-semibold">Devices</div>
-            {devices.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-6 text-base text-white/60">
-                No devices yet. Register a device and complete calibration to
-                begin streaming readings.
-              </div>
-            ) : (
-              <div className="mt-4 grid gap-3 text-base text-white/70">
-                {devices.slice(0, 3).map((device) => {
-                  const preset = device.location?.startsWith("Simulated · ")
-                    ? device.location.replace("Simulated · ", "")
-                    : "Manual";
-                  return (
-                    <div
-                      key={device.id}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
-                    >
-                      <div>
-                        <div className="font-semibold text-white">
-                          {device.name}
-                        </div>
-                        <div className="text-sm text-white/60">
-                          {preset} · {aquariumByDevice[device.id] ?? "Unassigned"}
-                        </div>
-                      </div>
-                      <span
-                        className={[
-                          "rounded-full border px-3 py-1 text-sm",
-                          device.is_active
-                            ? "border-emerald-500/40 text-emerald-200"
-                            : "border-white/10 text-white/50",
-                        ].join(" ")}
-                      >
-                        {device.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  );
-                })}
-                {devices.length > 3 ? (
-                  <div className="text-sm text-white/50">
-                    +{devices.length - 3} more devices
                   </div>
                 ) : null}
               </div>

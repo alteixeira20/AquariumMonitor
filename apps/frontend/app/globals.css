@@ -74,8 +74,7 @@ textarea:disabled {
 /* ------------------------------------------------------------------ */
 
 .glass-panel {
-  @apply rounded-2xl border border-white/10
-         bg-ocean-800/80 shadow-ocean backdrop-blur;
+  @apply rounded-2xl bg-ocean-800/80 backdrop-blur;
 }
 
 .section-divider {
