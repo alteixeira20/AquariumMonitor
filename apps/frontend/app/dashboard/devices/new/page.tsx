@@ -18,6 +18,11 @@ type DeviceRegisterResponse = {
   name: string;
 };
 
+type DeviceApiKeyResponse = {
+  device_id: string;
+  api_key: string;
+};
+
 type Preset = {
   id: string;
   name: string;
@@ -88,6 +93,13 @@ export default function DeviceRegisterPage() {
   const [deviceName, setDeviceName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingAquariums, setIsLoadingAquariums] = useState(true);
+  const [manualLocation, setManualLocation] = useState("");
+  const [manualDeviceId, setManualDeviceId] = useState<string | null>(null);
+  const [manualApiKey, setManualApiKey] = useState<string | null>(null);
+  const [ph4Voltage, setPh4Voltage] = useState("");
+  const [ph7Voltage, setPh7Voltage] = useState("");
+  const [ph9Voltage, setPh9Voltage] = useState("");
+  const [isCalibrating, setIsCalibrating] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -148,8 +160,10 @@ export default function DeviceRegisterPage() {
   }, [isChecking]);
 
   useEffect(() => {
-    setDeviceName(`Sim ${selectedPreset.name}`);
-  }, [selectedPreset]);
+    if (mode === "simulated") {
+      setDeviceName(`Sim ${selectedPreset.name}`);
+    }
+  }, [selectedPreset, mode]);
 
   const aquariumOptions = useMemo(() => {
     if (aquariums.length === 0) {
@@ -167,10 +181,20 @@ export default function DeviceRegisterPage() {
     }));
   }, [aquariums]);
 
-  const canSubmit = useMemo(() => {
+  const canSubmitSimulated = useMemo(() => {
     if (mode === "manual") return false;
     return deviceName.trim().length > 0 && selectedAquarium.length > 0;
   }, [deviceName, mode, selectedAquarium]);
+
+  const canSubmitManual = useMemo(() => {
+    if (mode !== "manual") return false;
+    return deviceName.trim().length > 0 && selectedAquarium.length > 0;
+  }, [deviceName, mode, selectedAquarium]);
+
+  const canSubmitCalibration = useMemo(() => {
+    if (!manualDeviceId) return false;
+    return ph4Voltage.trim() !== "" && ph7Voltage.trim() !== "" && ph9Voltage.trim() !== "";
+  }, [manualDeviceId, ph4Voltage, ph7Voltage, ph9Voltage]);
 
   if (isChecking) {
     return <div className="min-h-screen bg-ocean-900" />;
@@ -202,11 +226,11 @@ export default function DeviceRegisterPage() {
                 {
                   key: "manual",
                   title: "Manual",
-                  description: "Register real hardware (coming soon).",
+                  description: "Register real hardware and calibrate sensors.",
                 },
               ].map((option) => {
                 const isActive = mode === option.key;
-                const isDisabled = option.key === "manual";
+                const isDisabled = false;
                 return (
                   <button
                     key={option.key}
@@ -234,9 +258,283 @@ export default function DeviceRegisterPage() {
             </div>
 
             {mode === "manual" ? (
-              <div className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-base text-white/60">
-                Manual device registration will land next. For now, use a
-                simulated device to validate the full monitoring flow.
+              <div className="mt-6 grid gap-6">
+                <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
+                  <Field
+                    label={<span className="text-base font-semibold">Device name</span>}
+                    className="text-lg"
+                  >
+                    <input
+                      value={deviceName}
+                      onChange={(event) => setDeviceName(event.target.value)}
+                      placeholder="ESP32 Main Tank"
+                      disabled={!!manualDeviceId}
+                    />
+                  </Field>
+
+                  <Field
+                    label={<span className="text-base font-semibold">Attach to aquarium</span>}
+                    className="text-lg"
+                  >
+                    <Select
+                      value={selectedAquarium}
+                      onChange={setSelectedAquarium}
+                      options={aquariumOptions}
+                      disabled={!!manualDeviceId}
+                    />
+                  </Field>
+                </div>
+
+                <Field
+                  label={<span className="text-base font-semibold">Location (optional)</span>}
+                  className="text-lg"
+                >
+                  <input
+                    value={manualLocation}
+                    onChange={(event) => setManualLocation(event.target.value)}
+                    placeholder="Stand A · Left sump"
+                    disabled={!!manualDeviceId}
+                  />
+                </Field>
+
+                {isLoadingAquariums ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-base text-white/60">
+                    Loading aquariums…
+                  </div>
+                ) : aquariums.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 text-base text-white/60">
+                    You need at least one aquarium before attaching a device.
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    className="rounded-full border border-white/20 px-5 py-2 text-base font-semibold transition hover:border-ocean-500/60"
+                    onClick={() => router.push("/dashboard/devices")}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={[
+                      "rounded-full px-5 py-2 text-base font-semibold shadow-ocean transition",
+                      canSubmitManual && !manualDeviceId
+                        ? "bg-gradient-to-br from-[#1f8a9b] to-ocean-500 text-white hover:-translate-y-0.5"
+                        : "bg-white/10 text-white/50 cursor-not-allowed",
+                    ].join(" ")}
+                    disabled={!canSubmitManual || isSubmitting || !!manualDeviceId}
+                    onClick={async () => {
+                      if (!canSubmitManual || isSubmitting || manualDeviceId) return;
+                      const token = getAuthToken();
+                      if (!token) {
+                        router.replace("/login");
+                        return;
+                      }
+                      setIsSubmitting(true);
+                      try {
+                        const response = await fetchJson<DeviceRegisterResponse>(
+                          "/v1/devices",
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({
+                              name: deviceName.trim(),
+                              location: manualLocation.trim() || "Manual",
+                            }),
+                          },
+                          getClientApiBaseUrl()
+                        );
+                        await fetchJson(
+                          `/v1/aquariums/${selectedAquarium}/devices/${response.id}`,
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
+                          },
+                          getClientApiBaseUrl()
+                        );
+                        const apiKey = await fetchJson<DeviceApiKeyResponse>(
+                          `/v1/devices/${response.id}/api-keys`,
+                          {
+                            method: "POST",
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                            },
+                          },
+                          getClientApiBaseUrl()
+                        );
+                        setManualDeviceId(response.id);
+                        setManualApiKey(apiKey.api_key);
+                        push("Manual device registered. Save the API key.", "success");
+                      } catch (err) {
+                        push("Failed to register device.", "error");
+                      } finally {
+                        setIsSubmitting(false);
+                      }
+                    }}
+                  >
+                    {isSubmitting ? "Registering..." : "Register device"}
+                  </button>
+                </div>
+
+                {manualDeviceId && manualApiKey ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="text-base font-semibold text-white">
+                      Device API key
+                    </div>
+                    <p className="mt-1 text-sm text-white/60">
+                      Save this key in your firmware. It is shown only once.
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <div className="flex-1 rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-mono text-sm text-white/80">
+                        {manualApiKey}
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 transition hover:border-white/40"
+                        onClick={() => {
+                          navigator.clipboard.writeText(manualApiKey);
+                          push("API key copied.", "success");
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/60">
+                      POST readings to{" "}
+                      <span className="font-mono text-white/80">
+                        /v1/readings/{manualDeviceId}
+                      </span>{" "}
+                      using{" "}
+                      <span className="font-mono text-white/80">
+                        Authorization: Bearer &lt;api_key&gt;
+                      </span>
+                      .
+                    </div>
+                  </div>
+                ) : null}
+
+                {manualDeviceId ? (
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="text-base font-semibold text-white">
+                      pH calibration
+                    </div>
+                    <p className="mt-1 text-sm text-white/60">
+                      Measure voltage at pH 4.01, 6.86, and 9.18, then activate.
+                    </p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <Field
+                        label={<span className="text-sm font-semibold">pH 4.01 voltage</span>}
+                        className="text-lg"
+                      >
+                        <input
+                          value={ph4Voltage}
+                          onChange={(event) => setPh4Voltage(event.target.value)}
+                          placeholder="3.000"
+                          inputMode="decimal"
+                        />
+                      </Field>
+                      <Field
+                        label={<span className="text-sm font-semibold">pH 6.86 voltage</span>}
+                        className="text-lg"
+                      >
+                        <input
+                          value={ph7Voltage}
+                          onChange={(event) => setPh7Voltage(event.target.value)}
+                          placeholder="2.500"
+                          inputMode="decimal"
+                        />
+                      </Field>
+                      <Field
+                        label={<span className="text-sm font-semibold">pH 9.18 voltage</span>}
+                        className="text-lg"
+                      >
+                        <input
+                          value={ph9Voltage}
+                          onChange={(event) => setPh9Voltage(event.target.value)}
+                          placeholder="2.000"
+                          inputMode="decimal"
+                        />
+                      </Field>
+                    </div>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-sm text-white/60">
+                        Device won’t accept readings until calibration is active.
+                      </div>
+                      <button
+                        type="button"
+                        className={[
+                          "rounded-full px-5 py-2 text-base font-semibold shadow-ocean transition",
+                          canSubmitCalibration && !isCalibrating
+                            ? "bg-gradient-to-br from-[#1f8a9b] to-ocean-500 text-white hover:-translate-y-0.5"
+                            : "bg-white/10 text-white/50 cursor-not-allowed",
+                        ].join(" ")}
+                        disabled={!canSubmitCalibration || isCalibrating}
+                        onClick={async () => {
+                          if (!manualDeviceId || !canSubmitCalibration || isCalibrating) return;
+                          const token = getAuthToken();
+                          if (!token) {
+                            router.replace("/login");
+                            return;
+                          }
+                          setIsCalibrating(true);
+                          try {
+                            await fetchJson(
+                              `/v1/devices/${manualDeviceId}/calibration/start`,
+                              {
+                                method: "POST",
+                                headers: {
+                                  Authorization: `Bearer ${token}`,
+                                },
+                              },
+                              getClientApiBaseUrl()
+                            );
+                            const points = [
+                              { ph_point: 4.01, voltage: Number(ph4Voltage) },
+                              { ph_point: 6.86, voltage: Number(ph7Voltage) },
+                              { ph_point: 9.18, voltage: Number(ph9Voltage) },
+                            ];
+                            for (const point of points) {
+                              await fetchJson(
+                                `/v1/devices/${manualDeviceId}/calibration/points`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    Authorization: `Bearer ${token}`,
+                                  },
+                                  body: JSON.stringify(point),
+                                },
+                                getClientApiBaseUrl()
+                              );
+                            }
+                            await fetchJson(
+                              `/v1/devices/${manualDeviceId}/calibration/activate`,
+                              {
+                                method: "POST",
+                                headers: {
+                                  Authorization: `Bearer ${token}`,
+                                },
+                              },
+                              getClientApiBaseUrl()
+                            );
+                            push("Calibration activated.", "success");
+                            router.push("/dashboard/devices");
+                          } catch (err) {
+                            push("Calibration failed. Check the voltages and retry.", "error");
+                          } finally {
+                            setIsCalibrating(false);
+                          }
+                        }}
+                      >
+                        {isCalibrating ? "Calibrating..." : "Activate calibration"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="mt-6 grid gap-6">
@@ -315,13 +613,13 @@ export default function DeviceRegisterPage() {
                     type="button"
                     className={[
                       "rounded-full px-5 py-2 text-base font-semibold shadow-ocean transition",
-                      canSubmit
+                      canSubmitSimulated
                         ? "bg-gradient-to-br from-[#1f8a9b] to-ocean-500 text-white hover:-translate-y-0.5"
                         : "bg-white/10 text-white/50 cursor-not-allowed",
                     ].join(" ")}
-                    disabled={!canSubmit || isSubmitting}
+                    disabled={!canSubmitSimulated || isSubmitting}
                     onClick={async () => {
-                      if (!canSubmit || isSubmitting) return;
+                      if (!canSubmitSimulated || isSubmitting) return;
                       const token = getAuthToken();
                       if (!token) {
                         router.replace("/login");
