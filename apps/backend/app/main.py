@@ -26,6 +26,7 @@ from app.core.middleware import add_cors, add_rate_limit
 from app.core.security_headers import add_security_headers
 from app.infrastructure.db import create_mariadb_engine, create_session_factory
 from app.repositories.mariadb_repository import (
+    MariaDbAlertRepository,
     MariaDbAquariumDeviceRepository,
     MariaDbAquariumRepository,
     MariaDbDeviceApiKeyRepository,
@@ -37,6 +38,7 @@ from app.repositories.mariadb_repository import (
 from app.repositories.base_repository import (
     AquariumDeviceRepository,
     AquariumRepository,
+    AlertRepository,
     DeviceApiKeyRepository,
     DeviceRepository,
     PhCalibrationRepository,
@@ -44,6 +46,7 @@ from app.repositories.base_repository import (
     UserRepository,
 )
 from app.repositories.memory_repository import (
+    MemoryAlertRepository,
     MemoryAquariumDeviceRepository,
     MemoryAquariumRepository,
     MemoryDeviceApiKeyRepository,
@@ -53,6 +56,7 @@ from app.repositories.memory_repository import (
     MemoryUserRepository,
 )
 from app.repositories.sqlite_repository import (
+    SqliteAlertRepository,
     SqliteAquariumDeviceRepository,
     SqliteAquariumRepository,
     SqliteDeviceApiKeyRepository,
@@ -65,6 +69,7 @@ from app.repositories.sqlite_repository import (
 from app.services.aquarium_device_service import AquariumDeviceService
 from app.services.aquarium_service import AquariumService
 from app.services.aquarium_stats_service import AquariumStatsService
+from app.services.alert_service import AlertService
 from app.services.device_api_key_service import DeviceApiKeyService
 from app.services.device_service import DeviceService
 from app.services.device_status_service import DeviceStatusService
@@ -82,13 +87,17 @@ def _init_services(
     user_repo: UserRepository,
     aquarium_repo: AquariumRepository,
     aquarium_device_repo: AquariumDeviceRepository,
+    alert_repo: AlertRepository,
 ) -> None:
+    alert_service = AlertService(alert_repo)
     app.state.device_service = DeviceService(device_repo)
     app.state.reading_service = ReadingService(
         device_repo,
         reading_repo,
         ph_calibration_repo,
         aquarium_device_repo,
+        aquarium_repo,
+        alert_service,
     )
     app.state.device_api_key_service = DeviceApiKeyService(
         device_repo, device_api_key_repo
@@ -110,6 +119,7 @@ def _init_services(
         aquarium_repo,
         aquarium_device_repo,
         reading_repo,
+        alert_service,
     )
     app.state.ph_calibration_service = PhCalibrationService(
         device_repo,
@@ -118,6 +128,7 @@ def _init_services(
         reading_repo,
         ph_calibration_repo,
     )
+    app.state.alert_service = alert_service
 
 def _reset_app_state(app: FastAPI) -> None:
     app.state.db_path = None
@@ -130,6 +141,7 @@ def _reset_app_state(app: FastAPI) -> None:
     app.state.aquarium_stats_service = None
     app.state.device_status_service = None
     app.state.ph_calibration_service = None
+    app.state.alert_service = None
     app.state.user_service = None
     app.state.db_conn = None
     app.state.backup_task = None
@@ -164,6 +176,7 @@ async def _init_sqlite_backend(app: FastAPI, settings: Settings) -> aiosqlite.Co
     sqlite_user_repo = SqliteUserRepository(db_conn)
     sqlite_aquarium_repo = SqliteAquariumRepository(db_conn)
     sqlite_aquarium_device_repo = SqliteAquariumDeviceRepository(db_conn)
+    sqlite_alert_repo = SqliteAlertRepository(db_conn)
 
     _init_services(
         app,
@@ -174,6 +187,7 @@ async def _init_sqlite_backend(app: FastAPI, settings: Settings) -> aiosqlite.Co
         user_repo=sqlite_user_repo,
         aquarium_repo=sqlite_aquarium_repo,
         aquarium_device_repo=sqlite_aquarium_device_repo,
+        alert_repo=sqlite_alert_repo,
     )
     app.state.db_conn = db_conn
     app.state.db_path = db_path
@@ -193,6 +207,7 @@ def _init_mariadb_backend(app: FastAPI, settings: Settings) -> None:
     mariadb_aquarium_device_repo = MariaDbAquariumDeviceRepository(session_factory)
     mariadb_api_key_repo = MariaDbDeviceApiKeyRepository(session_factory)
     mariadb_ph_calibration_repo = MariaDbPhCalibrationRepository(session_factory)
+    mariadb_alert_repo = MariaDbAlertRepository(session_factory)
 
     _init_services(
         app,
@@ -203,6 +218,7 @@ def _init_mariadb_backend(app: FastAPI, settings: Settings) -> None:
         user_repo=mariadb_user_repo,
         aquarium_repo=mariadb_aquarium_repo,
         aquarium_device_repo=mariadb_aquarium_device_repo,
+        alert_repo=mariadb_alert_repo,
     )
 
 
@@ -214,6 +230,7 @@ def _init_memory_backend(app: FastAPI) -> None:
     memory_user_repo = MemoryUserRepository()
     memory_aquarium_repo = MemoryAquariumRepository()
     memory_aquarium_device_repo = MemoryAquariumDeviceRepository()
+    memory_alert_repo = MemoryAlertRepository()
 
     _init_services(
         app,
@@ -224,6 +241,7 @@ def _init_memory_backend(app: FastAPI) -> None:
         user_repo=memory_user_repo,
         aquarium_repo=memory_aquarium_repo,
         aquarium_device_repo=memory_aquarium_device_repo,
+        alert_repo=memory_alert_repo,
     )
 
 

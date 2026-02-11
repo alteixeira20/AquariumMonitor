@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     allow_headers: str = Field(default="*", alias="CORS_ALLOW_HEADERS")
     demo_enabled: bool = Field(default=True, alias="DEMO_ENABLED")
     demo_username: str = Field(default="demo", alias="DEMO_USERNAME")
-    demo_password: str = Field(default="password", alias="DEMO_PASSWORD")
+    demo_password: str = Field(default="demo", alias="DEMO_PASSWORD")
     demo_user_id: str = Field(
         default="00000000-0000-0000-0000-000000000001",
         alias="DEMO_USER_ID",

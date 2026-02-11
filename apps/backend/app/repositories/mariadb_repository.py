@@ -7,11 +7,13 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.domain.aquarium import Aquarium
+from app.domain.alert import Alert
 from app.domain.device import Device
 from app.domain.ph_calibration import PhCalibrationPoint
 from app.domain.reading import Reading
 from app.domain.user import User
 from app.infrastructure.db_models import (
+    AlertModel,
     AquariumDeviceModel,
     AquariumModel,
     DeviceApiKeyModel,
@@ -23,6 +25,7 @@ from app.infrastructure.db_models import (
 from app.repositories.base_repository import (
     AquariumDeviceRepository,
     AquariumRepository,
+    AlertRepository,
     DeviceApiKeyRepository,
     DeviceRepository,
     PhCalibrationRepository,
@@ -171,6 +174,9 @@ class MariaDbDeviceRepository(DeviceRepository):
         async with self._session_factory() as session:
             await session.execute(
                 delete(ReadingModel).where(ReadingModel.device_id == str(device_id))
+            )
+            await session.execute(
+                delete(AlertModel).where(AlertModel.device_id == str(device_id))
             )
             await session.execute(
                 delete(DeviceApiKeyModel).where(
@@ -589,6 +595,124 @@ class MariaDbDeviceApiKeyRepository(DeviceApiKeyRepository):
                 .values(revoked_at=datetime.utcnow())
             )
             await session.commit()
+
+
+class MariaDbAlertRepository(AlertRepository):
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
+        self._session_factory = session_factory
+
+    async def create(self, alert: "Alert") -> "Alert":
+        model = AlertModel(
+            id=str(alert.id),
+            aquarium_id=str(alert.aquarium_id),
+            device_id=str(alert.device_id) if alert.device_id else None,
+            alert_type=alert.alert_type,
+            sensor=alert.sensor,
+            level=alert.level,
+            message=alert.message,
+            created_at=alert.created_at,
+            resolved_at=alert.resolved_at,
+        )
+        async with self._session_factory() as session:
+            session.add(model)
+            await session.commit()
+        return alert
+
+    async def list(
+        self,
+        *,
+        aquarium_id: UUID | None,
+        alert_type: str | None,
+        sensor: str | None,
+        level: int | None,
+        unresolved_only: bool,
+        page: int,
+        page_size: int,
+    ) -> tuple[list["Alert"], int]:
+        filters = []
+        if aquarium_id is not None:
+            filters.append(AlertModel.aquarium_id == str(aquarium_id))
+        if alert_type is not None:
+            filters.append(AlertModel.alert_type == alert_type)
+        if sensor is not None:
+            filters.append(AlertModel.sensor == sensor)
+        if level is not None:
+            filters.append(AlertModel.level == level)
+        if unresolved_only:
+            filters.append(AlertModel.resolved_at.is_(None))
+
+        async with self._session_factory() as session:
+            total_stmt = select(func.count()).select_from(AlertModel).where(*filters)
+            total = (await session.execute(total_stmt)).scalar_one()
+            query = (
+                select(AlertModel)
+                .where(*filters)
+                .order_by(AlertModel.created_at.desc())
+                .limit(page_size)
+                .offset((page - 1) * page_size)
+            )
+            rows = (await session.execute(query)).scalars().all()
+
+        alerts: list["Alert"] = []
+        for row in rows:
+            alerts.append(
+                Alert(
+                    id=UUID(row.id),
+                    aquarium_id=UUID(row.aquarium_id),
+                    device_id=UUID(row.device_id) if row.device_id else None,
+                    alert_type=row.alert_type,
+                    sensor=row.sensor,
+                    level=row.level,
+                    message=row.message,
+                    created_at=row.created_at,
+                    resolved_at=row.resolved_at,
+                )
+            )
+        return alerts, int(total)
+
+    async def get_latest_for_key(
+        self,
+        *,
+        aquarium_id: UUID,
+        device_id: UUID | None,
+        alert_type: str,
+        sensor: str | None,
+    ) -> "Alert" | None:
+        filters = [
+            AlertModel.aquarium_id == str(aquarium_id),
+            AlertModel.alert_type == alert_type,
+        ]
+        if device_id is None:
+            filters.append(AlertModel.device_id.is_(None))
+        else:
+            filters.append(AlertModel.device_id == str(device_id))
+        if sensor is None:
+            filters.append(AlertModel.sensor.is_(None))
+        else:
+            filters.append(AlertModel.sensor == sensor)
+
+        async with self._session_factory() as session:
+            query = (
+                select(AlertModel)
+                .where(*filters)
+                .order_by(AlertModel.created_at.desc())
+                .limit(1)
+            )
+            row = (await session.execute(query)).scalar_one_or_none()
+
+        if row is None:
+            return None
+        return Alert(
+            id=UUID(row.id),
+            aquarium_id=UUID(row.aquarium_id),
+            device_id=UUID(row.device_id) if row.device_id else None,
+            alert_type=row.alert_type,
+            sensor=row.sensor,
+            level=row.level,
+            message=row.message,
+            created_at=row.created_at,
+            resolved_at=row.resolved_at,
+        )
 
 
 class MariaDbPhCalibrationRepository(PhCalibrationRepository):

@@ -103,3 +103,17 @@ class DevicePhCalibrationModel(Base):
     voltage: Mapped[float] = mapped_column(Float, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class AlertModel(Base):
+    __tablename__ = "alerts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    aquarium_id: Mapped[str] = mapped_column(String(36), ForeignKey("aquariums.id"))
+    device_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("devices.id"))
+    alert_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    sensor: Mapped[str | None] = mapped_column(String(20))
+    level: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.api.v1.aquariums import router as aquariums_router
+from app.api.v1.alerts import router as alerts_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.events import router as events_router
 from app.api.v1.health import router as health_router
@@ -44,4 +45,10 @@ api_router.include_router(
     readings_router,
     prefix="/v1/readings",
     tags=["readings"],
+)
+api_router.include_router(
+    alerts_router,
+    prefix="/v1/alerts",
+    tags=["alerts"],
+    dependencies=[Depends(jwt_dependency)],
 )

@@ -4,6 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.domain.aquarium import Aquarium
+from app.domain.alert import Alert
 from app.domain.device import Device
 from app.domain.ph_calibration import PhCalibrationPoint
 from app.domain.reading import Reading
@@ -11,6 +12,7 @@ from app.domain.user import User
 from app.repositories.base_repository import (
     AquariumDeviceRepository,
     AquariumRepository,
+    AlertRepository,
     DeviceRepository,
     DeviceApiKeyRepository,
     PhCalibrationRepository,
@@ -118,6 +120,67 @@ class MemoryReadingRepository(ReadingRepository):
         start = (page - 1) * page_size
         end = start + page_size
         return all_sorted[start:end], total
+
+    async def get_latest(self, device_id: UUID) -> Reading | None:
+        readings = await self.list_for_device(device_id)
+        return readings[0] if readings else None
+
+
+class MemoryAlertRepository(AlertRepository):
+    def __init__(self) -> None:
+        self._alerts: list[Alert] = []
+
+    async def create(self, alert: Alert) -> Alert:
+        self._alerts.append(alert)
+        return alert
+
+    async def list(
+        self,
+        *,
+        aquarium_id: UUID | None,
+        alert_type: str | None,
+        sensor: str | None,
+        level: int | None,
+        unresolved_only: bool,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Alert], int]:
+        alerts = self._alerts
+        if aquarium_id is not None:
+            alerts = [a for a in alerts if a.aquarium_id == aquarium_id]
+        if alert_type is not None:
+            alerts = [a for a in alerts if a.alert_type == alert_type]
+        if sensor is not None:
+            alerts = [a for a in alerts if a.sensor == sensor]
+        if level is not None:
+            alerts = [a for a in alerts if a.level == level]
+        if unresolved_only:
+            alerts = [a for a in alerts if a.resolved_at is None]
+        alerts = sorted(alerts, key=lambda a: a.created_at, reverse=True)
+        total = len(alerts)
+        start = (page - 1) * page_size
+        end = start + page_size
+        return alerts[start:end], total
+
+    async def get_latest_for_key(
+        self,
+        *,
+        aquarium_id: UUID,
+        device_id: UUID | None,
+        alert_type: str,
+        sensor: str | None,
+    ) -> Alert | None:
+        matches = [
+            alert
+            for alert in self._alerts
+            if alert.aquarium_id == aquarium_id
+            and alert.alert_type == alert_type
+            and alert.sensor == sensor
+            and (alert.device_id == device_id)
+        ]
+        if not matches:
+            return None
+        return sorted(matches, key=lambda a: a.created_at, reverse=True)[0]
 
     async def get_latest(self, device_id: UUID) -> Reading | None:
         readings = self._filter_by_device(device_id)

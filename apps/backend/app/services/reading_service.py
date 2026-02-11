@@ -9,10 +9,12 @@ from app.core.metrics import inc_readings_created
 from app.domain.reading import Reading
 from app.repositories.base_repository import (
     AquariumDeviceRepository,
+    AquariumRepository,
     DeviceRepository,
     PhCalibrationRepository,
     ReadingRepository,
 )
+from app.services.alert_service import AlertService
 
 
 class ReadingService:
@@ -31,11 +33,15 @@ class ReadingService:
         reading_repo: ReadingRepository,
         ph_calibration_repo: PhCalibrationRepository,
         aquarium_device_repo: AquariumDeviceRepository,
+        aquarium_repo: AquariumRepository,
+        alert_service: AlertService | None = None,
     ):
         self.device_repo = device_repo
         self.reading_repo = reading_repo
         self.ph_calibration_repo = ph_calibration_repo
         self.aquarium_device_repo = aquarium_device_repo
+        self.aquarium_repo = aquarium_repo
+        self.alert_service = alert_service
 
     # ------------------------------------------------------------
     # Creation
@@ -89,8 +95,85 @@ class ReadingService:
         await self.reading_repo.create(reading)
         inc_readings_created()
 
+        # Alerts
+        if self.alert_service is not None:
+            await self._emit_alerts(aquarium_id, device_id, reading)
+
         # Return processed reading
         return reading
+
+    async def _emit_alerts(
+        self,
+        aquarium_id: UUID,
+        device_id: UUID,
+        reading: Reading,
+    ) -> None:
+        aquarium = await self.aquarium_repo.get(aquarium_id)
+        if aquarium is None:
+            return
+
+        def _level_for_value(value: float, min_value: float, max_value: float) -> int | None:
+            if value < min_value or value > max_value:
+                range_span = max_value - min_value or 1.0
+                if value < min_value:
+                    delta = min_value - value
+                else:
+                    delta = value - max_value
+                percent = delta / range_span
+                return 3 if percent > 0.10 else 2
+            return None
+
+        checks = [
+            (
+                "temperature",
+                reading.temperature_c,
+                aquarium.temperature_min,
+                aquarium.temperature_max,
+                aquarium.temperature_enabled,
+                "Temperature out of range",
+            ),
+            (
+                "ph",
+                reading.ph_value,
+                aquarium.ph_min,
+                aquarium.ph_max,
+                aquarium.ph_enabled,
+                "pH out of range",
+            ),
+            (
+                "tds",
+                reading.tds_ppm,
+                aquarium.tds_min,
+                aquarium.tds_max,
+                aquarium.tds_enabled,
+                "TDS out of range",
+            ),
+        ]
+
+        for sensor, value, min_value, max_value, enabled, message in checks:
+            if not enabled:
+                continue
+            if value is None:
+                await self.alert_service.create_alert_if_new(
+                    aquarium_id=aquarium_id,
+                    device_id=device_id,
+                    alert_type="sensor_missing_data",
+                    sensor=sensor,
+                    level=2,
+                    message=f"{sensor} reading missing",
+                )
+                continue
+            level = _level_for_value(value, min_value, max_value)
+            if level is None:
+                continue
+            await self.alert_service.create_alert_if_new(
+                aquarium_id=aquarium_id,
+                device_id=device_id,
+                alert_type="sensor_out_of_range",
+                sensor=sensor,
+                level=level,
+                message=message,
+            )
 
     # ------------------------------------------------------------
     # Queries (non-paginated)

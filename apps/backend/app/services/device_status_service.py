@@ -9,6 +9,7 @@ from app.repositories.base_repository import (
     AquariumRepository,
     ReadingRepository,
 )
+from app.services.alert_service import AlertService
 
 OFFLINE_THRESHOLD_SECONDS = 180
 
@@ -19,10 +20,12 @@ class DeviceStatusService:
         aquarium_repo: AquariumRepository,
         aquarium_device_repo: AquariumDeviceRepository,
         reading_repo: ReadingRepository,
+        alert_service: AlertService | None = None,
     ) -> None:
         self.aquarium_repo = aquarium_repo
         self.aquarium_device_repo = aquarium_device_repo
         self.reading_repo = reading_repo
+        self.alert_service = alert_service
 
     async def get_status(self, user_id: UUID, device_id: UUID) -> dict[str, object]:
         aquarium_id = await self.aquarium_device_repo.get_active_aquarium_for_device(device_id)
@@ -42,6 +45,16 @@ class DeviceStatusService:
             now = datetime.now(UTC)
             if now - last_seen <= timedelta(seconds=OFFLINE_THRESHOLD_SECONDS):
                 status = "online"
+
+        if status == "offline" and self.alert_service is not None:
+            await self.alert_service.create_alert_if_new(
+                aquarium_id=aquarium_id,
+                device_id=device_id,
+                alert_type="device_offline",
+                sensor=None,
+                level=3,
+                message="Device offline",
+            )
 
         return {
             "device_id": device_id,

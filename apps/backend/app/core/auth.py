@@ -92,8 +92,17 @@ def get_user_id_from_claims(claims: dict) -> UUID:
     return get_user_context_from_claims(claims).user_id
 
 
-async def user_context_dependency(claims: dict = Depends(jwt_dependency)) -> UserContext:
-    return get_user_context_from_claims(claims)
+async def user_context_dependency(
+    request: Request,
+    claims: dict = Depends(jwt_dependency),
+) -> UserContext:
+    ctx = get_user_context_from_claims(claims)
+    user_service = getattr(request.app.state, "user_service", None)
+    if user_service is not None:
+        user = await user_service.get_user(ctx.user_id)
+        if user is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+    return ctx
 
 
 async def require_write_access(

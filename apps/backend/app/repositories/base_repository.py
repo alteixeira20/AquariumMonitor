@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.domain.aquarium import Aquarium
+from app.domain.alert import Alert
 from app.domain.device import Device
 from app.domain.ph_calibration import PhCalibrationPoint
 from app.domain.reading import Reading
@@ -167,3 +168,31 @@ class PhCalibrationRepository(ABC):
 
     @abstractmethod
     async def activate_points(self, device_id: UUID, points: list[PhCalibrationPoint]) -> None: ...
+
+
+class AlertRepository(ABC):
+    @abstractmethod
+    async def create(self, alert: Alert) -> Alert: ...
+
+    @abstractmethod
+    async def list(
+        self,
+        *,
+        aquarium_id: UUID | None,
+        alert_type: str | None,
+        sensor: str | None,
+        level: int | None,
+        unresolved_only: bool,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Alert], int]: ...
+
+    @abstractmethod
+    async def get_latest_for_key(
+        self,
+        *,
+        aquarium_id: UUID,
+        device_id: UUID | None,
+        alert_type: str,
+        sensor: str | None,
+    ) -> Alert | None: ...

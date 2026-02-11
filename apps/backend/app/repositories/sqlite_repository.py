@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 import aiosqlite
 
 from app.domain.aquarium import Aquarium
+from app.domain.alert import Alert
 from app.domain.device import Device
 from app.domain.ph_calibration import PhCalibrationPoint
 from app.domain.reading import Reading
@@ -19,6 +20,7 @@ from app.repositories.base_repository import (
     AquariumRepository,
     DeviceRepository,
     DeviceApiKeyRepository,
+    AlertRepository,
     PhCalibrationRepository,
     ReadingRepository,
     UserRepository,
@@ -165,6 +167,20 @@ async def init_db(
             FOREIGN KEY(device_id) REFERENCES devices(id)
         );
 
+        CREATE TABLE IF NOT EXISTS alerts (
+            id TEXT PRIMARY KEY,
+            aquarium_id TEXT NOT NULL,
+            device_id TEXT,
+            alert_type TEXT NOT NULL,
+            sensor TEXT,
+            level INTEGER NOT NULL,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            resolved_at TEXT,
+            FOREIGN KEY(aquarium_id) REFERENCES aquariums(id),
+            FOREIGN KEY(device_id) REFERENCES devices(id)
+        );
+
         CREATE INDEX IF NOT EXISTS idx_readings_device_id ON readings(device_id);
         CREATE INDEX IF NOT EXISTS idx_readings_received_at ON readings(received_at);
         CREATE INDEX IF NOT EXISTS idx_device_ph_calibrations_device_id
@@ -178,6 +194,9 @@ async def init_db(
             ON device_api_keys(device_id);
         CREATE INDEX IF NOT EXISTS idx_device_api_keys_key_hash
             ON device_api_keys(key_hash);
+        CREATE INDEX IF NOT EXISTS idx_alerts_aquarium_id ON alerts(aquarium_id);
+        CREATE INDEX IF NOT EXISTS idx_alerts_device_id ON alerts(device_id);
+        CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at);
         """
     )
 
@@ -700,6 +719,9 @@ class SqliteDeviceRepository(DeviceRepository):
             "DELETE FROM readings WHERE device_id = ?", (device_id_str,)
         )
         await self._conn.execute(
+            "DELETE FROM alerts WHERE device_id = ?", (device_id_str,)
+        )
+        await self._conn.execute(
             "DELETE FROM device_api_keys WHERE device_id = ?", (device_id_str,)
         )
         await self._conn.execute(
@@ -1082,3 +1104,137 @@ class SqliteDeviceApiKeyRepository(DeviceApiKeyRepository):
             (revoked_at, str(device_id), key_hash),
         )
         await self._conn.commit()
+
+
+class SqliteAlertRepository(AlertRepository):
+    def __init__(self, conn: aiosqlite.Connection) -> None:
+        self._conn = conn
+        self._conn.row_factory = aiosqlite.Row
+
+    async def create(self, alert: Alert) -> Alert:
+        await self._conn.execute(
+            """
+            INSERT INTO alerts (
+                id, aquarium_id, device_id, alert_type, sensor, level, message, created_at, resolved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(alert.id),
+                str(alert.aquarium_id),
+                str(alert.device_id) if alert.device_id else None,
+                alert.alert_type,
+                alert.sensor,
+                alert.level,
+                alert.message,
+                alert.created_at.isoformat(),
+                alert.resolved_at.isoformat() if alert.resolved_at else None,
+            ),
+        )
+        await self._conn.commit()
+        return alert
+
+    async def list(
+        self,
+        *,
+        aquarium_id: UUID | None,
+        alert_type: str | None,
+        sensor: str | None,
+        level: int | None,
+        unresolved_only: bool,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Alert], int]:
+        filters: list[str] = []
+        params: list[object] = []
+        if aquarium_id is not None:
+            filters.append("aquarium_id = ?")
+            params.append(str(aquarium_id))
+        if alert_type is not None:
+            filters.append("alert_type = ?")
+            params.append(alert_type)
+        if sensor is not None:
+            filters.append("sensor = ?")
+            params.append(sensor)
+        if level is not None:
+            filters.append("level = ?")
+            params.append(level)
+        if unresolved_only:
+            filters.append("resolved_at IS NULL")
+
+        where_sql = f"WHERE {' AND '.join(filters)}" if filters else ""
+        count_sql = f"SELECT COUNT(*) FROM alerts {where_sql}"
+        query_sql = (
+            f"SELECT * FROM alerts {where_sql} ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        )
+        params_with_pagination = params + [page_size, (page - 1) * page_size]
+
+        cursor = await self._conn.execute(count_sql, params)
+        count_row = await cursor.fetchone()
+        total = int(count_row[0]) if count_row else 0
+        await cursor.close()
+
+        cursor = await self._conn.execute(query_sql, params_with_pagination)
+        rows = await cursor.fetchall()
+        await cursor.close()
+
+        alerts: list[Alert] = []
+        for row in rows:
+            alerts.append(
+                Alert(
+                    id=UUID(row["id"]),
+                    aquarium_id=UUID(row["aquarium_id"]),
+                    device_id=UUID(row["device_id"]) if row["device_id"] else None,
+                    alert_type=row["alert_type"],
+                    sensor=row["sensor"],
+                    level=int(row["level"]),
+                    message=row["message"],
+                    created_at=datetime.fromisoformat(row["created_at"]),
+                    resolved_at=datetime.fromisoformat(row["resolved_at"])
+                    if row["resolved_at"]
+                    else None,
+                )
+            )
+        return alerts, total
+
+    async def get_latest_for_key(
+        self,
+        *,
+        aquarium_id: UUID,
+        device_id: UUID | None,
+        alert_type: str,
+        sensor: str | None,
+    ) -> Alert | None:
+        cursor = await self._conn.execute(
+            """
+            SELECT * FROM alerts
+            WHERE aquarium_id = ?
+              AND (device_id IS ? OR device_id = ?)
+              AND alert_type = ?
+              AND (sensor IS ? OR sensor = ?)
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (
+                str(aquarium_id),
+                None if device_id is None else str(device_id),
+                str(device_id) if device_id else None,
+                alert_type,
+                sensor,
+                sensor,
+            ),
+        )
+        row = await cursor.fetchone()
+        await cursor.close()
+        if row is None:
+            return None
+        return Alert(
+            id=UUID(row["id"]),
+            aquarium_id=UUID(row["aquarium_id"]),
+            device_id=UUID(row["device_id"]) if row["device_id"] else None,
+            alert_type=row["alert_type"],
+            sensor=row["sensor"],
+            level=int(row["level"]),
+            message=row["message"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            resolved_at=datetime.fromisoformat(row["resolved_at"]) if row["resolved_at"] else None,
+        )
