@@ -19,6 +19,7 @@ cp apps/simulator/config.example.toml apps/simulator/config.toml
 Key fields:
 - `backend.base_url`
 - `backend.owner_email` / `backend.owner_password`
+- `backend.demo_email` / `backend.demo_password` (optional, for demo login)
 - `simulator.tick_seconds`
 - `simulator.seed`
 - `simulator.state_path`
@@ -58,7 +59,8 @@ The simulator stores state in `SIM_STATE_PATH` so it can reuse device IDs and AP
 
 If you run the simulator in queue-only mode (UI-triggered devices), you do not need
 owner credentials. If credentials are provided, the simulator can also provision the
-static aquariums/devices from the TOML config.
+static aquariums/devices from the TOML config. Demo credentials can be used for read-only
+rehydration when the owner account is not provided.
 
 ## UI-driven simulated devices
 The UI can enqueue simulated devices through the backend:

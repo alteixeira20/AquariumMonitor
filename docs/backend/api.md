@@ -74,6 +74,17 @@ Reading payload:
 }
 ```
 
+## Alerts
+- `GET /alerts` — list alerts (JWT required).
+
+Filters (query params):
+- `aquarium_id` — filter by aquarium.
+- `alert_type` — `sensor_out_of_range`, `device_offline`, `sensor_missing_data`.
+- `sensor` — `temperature`, `ph`, `tds`.
+- `level` — 0..3.
+- `unresolved_only` — defaults to `true`.
+- `page` / `page_size`.
+
 ## Health & metrics
 - `GET /health` — liveness check.
 - `GET /readiness` — storage readiness.
