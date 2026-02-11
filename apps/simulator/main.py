@@ -35,6 +35,8 @@ class BackendConfig:
     base_url: str
     owner_email: str
     owner_password: str
+    demo_email: str
+    demo_password: str
     wait_for_setup: bool
     auto_setup: bool
     poll_seconds: int
@@ -143,6 +145,15 @@ class SimulatorState:
         }
         self.save()
 
+    def set_active_device_api_key(self, device_id: str, api_key: str) -> None:
+        updated = False
+        for entry in self.data.get("active_devices", []):
+            if str(entry.get("device_id")) == device_id:
+                entry["api_key"] = api_key
+                updated = True
+        if updated:
+            self.save()
+
     def get_queue_offset(self) -> int:
         return int(self.data.get("queue_offset", 0) or 0)
 
@@ -154,7 +165,12 @@ class SimulatorState:
         return list(self.data.get("active_devices", []))
 
     def add_active_device(
-        self, device_id: str, aquarium_id: str, pattern: str
+        self,
+        device_id: str,
+        aquarium_id: str,
+        pattern: str,
+        api_key: str | None = None,
+        aquarium: dict[str, Any] | None = None,
     ) -> None:
         active = self.data.setdefault("active_devices", [])
         if any(item.get("device_id") == device_id for item in active):
@@ -164,6 +180,8 @@ class SimulatorState:
                 "device_id": device_id,
                 "aquarium_id": aquarium_id,
                 "pattern": pattern,
+                "api_key": api_key,
+                "aquarium": aquarium,
             }
         )
         self.save()
@@ -205,6 +223,8 @@ def load_config(path: Path) -> AppConfig:
             base_url=os.getenv("SIM_BACKEND_URL", backend.get("base_url", "http://localhost:8000")),
             owner_email=os.getenv("SIM_OWNER_EMAIL", backend.get("owner_email", "")),
             owner_password=os.getenv("SIM_OWNER_PASSWORD", backend.get("owner_password", "")),
+            demo_email=os.getenv("SIM_DEMO_EMAIL", backend.get("demo_email", "demo")),
+            demo_password=os.getenv("SIM_DEMO_PASSWORD", backend.get("demo_password", "demo")),
             wait_for_setup=_env_bool("SIM_WAIT_FOR_SETUP", backend.get("wait_for_setup", True)),
             auto_setup=_env_bool("SIM_AUTO_SETUP", backend.get("auto_setup", False)),
             poll_seconds=int(os.getenv("SIM_POLL_SECONDS", backend.get("poll_seconds", 3))),
@@ -401,6 +421,26 @@ def login_with_retry(client: ApiClient, cfg: BackendConfig) -> None:
             time.sleep(cfg.poll_seconds)
 
 
+def login_demo_with_retry(client: ApiClient, cfg: BackendConfig) -> None:
+    if not cfg.demo_email or not cfg.demo_password:
+        raise SystemExit("Demo credentials not set for simulator.")
+    while True:
+        try:
+            client.login(cfg.demo_email, cfg.demo_password)
+            return
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 401:
+                print(
+                    "Simulator demo login failed (401). Update SIM_DEMO_EMAIL/SIM_DEMO_PASSWORD "
+                    "to match the demo credentials, then retrying..."
+                )
+                time.sleep(cfg.poll_seconds)
+                continue
+            raise
+        except httpx.RequestError:
+            time.sleep(cfg.poll_seconds)
+
+
 def _find_by_name(items: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
     for item in items:
         if item.get("name") == name:
@@ -441,6 +481,20 @@ def _aquarium_from_queue(payload: dict[str, Any]) -> AquariumConfig | None:
         )
     except (KeyError, TypeError, ValueError):
         return None
+
+
+def _aquarium_to_payload(aquarium: AquariumConfig) -> dict[str, Any]:
+    return {
+        "name": aquarium.name,
+        "water_type": aquarium.water_type,
+        "liters": aquarium.liters,
+        "temperature_min": aquarium.temperature_min,
+        "temperature_max": aquarium.temperature_max,
+        "ph_min": aquarium.ph_min,
+        "ph_max": aquarium.ph_max,
+        "tds_min": aquarium.tds_min,
+        "tds_max": aquarium.tds_max,
+    }
 
 
 def _calibration_points(cfg: CalibrationConfig) -> dict[float, float]:
@@ -644,6 +698,14 @@ def provision(client: ApiClient, cfg: AppConfig, state: SimulatorState) -> dict[
                 pattern=device_cfg.pattern,
                 aquarium=aquarium_cfg,
             )
+            state.set_device_by_id(device_id, api_key)
+            state.add_active_device(
+                device_id,
+                aquarium_id,
+                device_cfg.pattern,
+                api_key=api_key,
+                aquarium=_aquarium_to_payload(aquarium_cfg),
+            )
 
     return device_states
 
@@ -690,6 +752,14 @@ def _ensure_device_state(
         aquarium=aquarium_cfg,
     )
 
+    state.add_active_device(
+        device_id,
+        aquarium_id,
+        pattern,
+        api_key=api_key,
+        aquarium=_aquarium_to_payload(aquarium_cfg),
+    )
+
 
 def load_active_devices(
     client: ApiClient,
@@ -701,14 +771,51 @@ def load_active_devices(
         device_id = str(item.get("device_id", "")).strip()
         aquarium_id = str(item.get("aquarium_id", "")).strip()
         pattern = str(item.get("pattern", "all_three_mix")).strip()
+        api_key = item.get("api_key") or None
+        aquarium_payload = item.get("aquarium")
         if not device_id or not aquarium_id:
             continue
-        try:
-            _ensure_device_state(
-                client, cfg, state, device_states, aquarium_id, device_id, pattern
+        aquarium_cfg = _aquarium_from_queue(aquarium_payload) if aquarium_payload else None
+        if aquarium_cfg and api_key:
+            device_states[device_id] = DeviceState(
+                device_id=device_id,
+                api_key=str(api_key),
+                pattern=pattern,
+                aquarium=aquarium_cfg,
             )
-        except Exception:
             continue
+
+        if api_key and aquarium_cfg is None:
+            try:
+                aquarium_payload = client.get_aquarium(aquarium_id)
+                aquarium_cfg = _aquarium_from_response(aquarium_payload)
+                device_states[device_id] = DeviceState(
+                    device_id=device_id,
+                    api_key=str(api_key),
+                    pattern=pattern,
+                    aquarium=aquarium_cfg,
+                )
+                continue
+            except Exception:
+                pass
+
+        cached = state.get_device_by_id(device_id)
+        if cached and cached.get("api_key") and aquarium_cfg:
+            device_states[device_id] = DeviceState(
+                device_id=device_id,
+                api_key=str(cached["api_key"]),
+                pattern=pattern,
+                aquarium=aquarium_cfg,
+            )
+            continue
+
+        if cfg.backend.owner_email and cfg.backend.owner_password:
+            try:
+                _ensure_device_state(
+                    client, cfg, state, device_states, aquarium_id, device_id, pattern
+                )
+            except Exception:
+                continue
 
 
 def consume_queue(
@@ -766,14 +873,27 @@ def consume_queue(
                 aquarium=aquarium_cfg,
             )
             state.set_device_by_id(device_id, str(api_key))
-            state.add_active_device(device_id, aquarium_id, pattern)
+            state.add_active_device(
+                device_id,
+                aquarium_id,
+                pattern,
+                api_key=str(api_key),
+                aquarium=aquarium_payload,
+            )
             continue
 
         try:
             _ensure_device_state(
                 client, cfg, state, device_states, aquarium_id, device_id, pattern
             )
-            state.add_active_device(device_id, aquarium_id, pattern)
+            state.add_active_device(
+                device_id,
+                aquarium_id,
+                pattern,
+                aquarium=_aquarium_to_payload(aquarium_cfg)
+                if aquarium_cfg
+                else None,
+            )
         except Exception:
             continue
 
@@ -812,9 +932,30 @@ def emit_loop(
             try:
                 client.post_reading(device_state.device_id, device_state.api_key, payload)
             except httpx.HTTPError as exc:
-                print(
-                    f"Reading post failed for {device_state.device_id}: {exc}"
-                )
+                status_code = None
+                if isinstance(exc, httpx.HTTPStatusError):
+                    status_code = exc.response.status_code
+                if status_code == 401:
+                    if cfg.backend.owner_email and cfg.backend.owner_password:
+                        try:
+                            key_resp = client.create_device_key(device_state.device_id)
+                            new_key = key_resp["api_key"]
+                            device_state.api_key = new_key
+                            state.set_device_by_id(device_state.device_id, new_key)
+                            state.set_active_device_api_key(device_state.device_id, new_key)
+                            client.post_reading(
+                                device_state.device_id, device_state.api_key, payload
+                            )
+                            continue
+                        except httpx.HTTPError:
+                            pass
+                    state.set_paused(device_state.device_id, True)
+                    print(
+                        f"Reading post failed (401) for {device_state.device_id}. "
+                        "Pausing device until a new API key is issued."
+                    )
+                    continue
+                print(f"Reading post failed for {device_state.device_id}: {exc}")
 
         tick += 1
         time.sleep(cfg.simulator.tick_seconds)
@@ -836,7 +977,11 @@ def main() -> None:
         ensure_setup(client, cfg.backend)
         login_with_retry(client, cfg.backend)
         device_states = provision(client, cfg, state)
-        load_active_devices(client, cfg, state, device_states)
+    elif cfg.backend.demo_email and cfg.backend.demo_password:
+        ensure_setup(client, cfg.backend)
+        login_demo_with_retry(client, cfg.backend)
+
+    load_active_devices(client, cfg, state, device_states)
 
     emit_loop(client, cfg, state, device_states)
 
